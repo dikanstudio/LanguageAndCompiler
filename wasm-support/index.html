@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!--
+    USAGE:
+
+    (1) Execute `make build`
+    (2) Start web server: python3 -m http.server
+    (3) Change file variable below
+    (4) Load index.html in browser: http://localhost:8000
+
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>WASM</title>
+  </head>
+  <body>
+    <h3>Output</h3>
+    <pre id="output"></pre>
+    <script src="wasm_lib.js"></script>
+    <script type="text/javascript">
+        const file = "hello.wasm";
+        fetch(file)
+            .then((response) => {
+                console.log("Fetched " + file);
+                return response.arrayBuffer()
+            }).then(runWasm);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cd $(dirname $0)/..
+
+PYRIGHT=.venv/bin/pyright
+if [ ! -x "$PYRIGHT" -o -d /cc-support ]; then
+    PYRIGHT=pyright
+fi
+$PYRIGHT "$@"

@@ -1,0 +1,21 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    container:
+      image: skogsbaer/compiler-construction-wasm_linux-amd64:20240307170817
+    steps:
+      - uses: actions/checkout@v4
+      - name: Uptodate
+        run: |
+          bash docker/check-image-uptodate
+      - name: Test
+        run: |
+          ./check

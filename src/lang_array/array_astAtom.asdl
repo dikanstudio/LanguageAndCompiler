@@ -1,0 +1,28 @@
+module LangArrayAtom
+{
+
+    atomExp =
+          IntConst(int value)
+        | BoolConst(bool value)
+        | Name(ident var)
+        attributes(ty? ty)
+
+    exp =
+          AtomExp(atomExp e)
+        | Call(ident var, exp* args)
+        | UnOp(unaryop op, exp arg)
+        | BinOp(exp left, binaryop op, exp right)
+        | ArrayInitDyn(atomExp len, atomExp elemInit)
+        | ArrayInitStatic(atomExp* elemInit)
+        | Subscript(atomExp array, atomExp index)
+        attributes(resultTy? ty)
+
+    stmt =
+        StmtExp(exp)
+        | Assign(ident var, exp right)
+        | IfStmt(exp cond, stmt* thenBody, stmt* elseBody)
+        | WhileStmt(exp cond, stmt* body)
+        | SubscriptAssign(atomExp left, atomExp index, exp right)
+
+    mod = Module(stmt* stmts)
+}

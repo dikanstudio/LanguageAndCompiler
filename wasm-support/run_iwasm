@@ -1,0 +1,25 @@
+#!/bin/bash
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+if [ $(uname) == "Darwin" ]; then
+    LIB_EXT=".dylib"
+else
+    LIB_EXT=".so"
+fi
+
+if [ -d /cc -a -d /cc-support ]; then
+    # Running with docker
+    d="/cc-support/wasm-support"
+else
+    d="$SCRIPT_DIR"
+fi
+
+NATIVE_LIB="$d/native-lib/build/libenv$LIB_EXT"
+
+if [ ! -f "$NATIVE_LIB" ]; then
+    echo "Native library $NATIVE_LIB does not exist!"
+    exit 1
+fi
+
+iwasm --native-lib=$NATIVE_LIB "$@"

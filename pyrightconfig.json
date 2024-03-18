@@ -1,0 +1,7 @@
+{
+    "reportWildcardImportFromLibrary": false,
+    "reportMissingTypeStubs": false,
+    "exclude": ["test_files", ".venv", "wasm-support"],
+    "ignore": ["src/asdl", "src/common/pretty.py"],
+    "typeCheckingMode": "strict"
+}

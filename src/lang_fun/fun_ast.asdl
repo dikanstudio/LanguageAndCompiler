@@ -1,0 +1,27 @@
+module LangFun
+{
+
+    exp =
+          IntConst(int value)
+        | BoolConst(bool value)
+        | Name(ident var, scope? scope)        -- scope is added by the type checker
+        | Call(exp fun, exp* args)             -- print, input_int, len, and more
+        | UnOp(unaryop op, exp arg)
+        | BinOp(exp left, binaryop op, exp right)
+        | ArrayInitDyn(exp len, exp elemInit)   -- 5 * [0]
+        | ArrayInitStatic(exp* elemInit)        -- [1,2,3]
+        | Subscript(exp array, exp index)       -- x[1]
+        attributes(resultTy? ty)                -- added by the type checker
+
+    stmt =
+        StmtExp(exp)
+        | Assign(ident var, exp right)
+        | IfStmt(exp cond, stmt* thenBody, stmt* elseBody)
+        | WhileStmt(exp cond, stmt* body)
+        | SubscriptAssign(exp left, exp index, exp right)   -- x[1][2] = ...
+        | Return(exp? result)
+
+    fun = FunDef(ident name, funParam* params, resultTy result, stmt* body)
+
+    mod = Module(fun* funs, stmt* stmts)
+}

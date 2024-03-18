@@ -1,0 +1,13 @@
+#!/bin/bash
+
+A=/cc-support
+B=./
+FILES="requirements.txt wasm-support/Makefile wasm-support/native-lib/CMakeLists.txt wasm-support/native-lib/env.c"
+
+for x in $FILES; do
+    if ! diff -u $A/$x $B/$x; then
+        echo
+        echo "ERROR: file $x change in repo with respect to docker image. Please build a new image."
+        exit 1
+    fi
+done

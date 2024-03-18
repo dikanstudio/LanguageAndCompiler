@@ -1,0 +1,7 @@
+#!/bin/bash
+
+cd $(dirname $0)/..
+
+./scripts/tycheck || exit 1
+./scripts/run-tests || exit 1
+

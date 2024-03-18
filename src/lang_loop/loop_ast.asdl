@@ -1,0 +1,26 @@
+module LangLoop
+{
+    unaryop = USub | Not
+    binaryop = Add | Sub | Mul
+             | Less | LessEq | Greater | GreaterEq | Eq | NotEq
+             | And | Or
+    ty = Int | Bool
+    resultTy = NotVoid(ty) | Void
+
+    exp =
+        IntConst(int value)
+        | BoolConst(bool value)
+        | Name(ident name)
+        | Call(ident name, exp* args)   -- print, input_int
+        | UnOp(unaryop op, exp arg)
+        | BinOp(exp left, binaryop op, exp right)
+        attributes(resultTy? ty)
+
+    stmt =
+        StmtExp(exp)
+        | Assign(ident var, exp right)
+        | IfStmt(exp cond, stmt* thenBody, stmt* elseBody)
+        | WhileStmt(exp cond, stmt* body)
+
+    mod = Module(stmt* stmts)
+}

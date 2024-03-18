@@ -1,0 +1,11 @@
+__pycache__/
+.test_cache/
+.#
+*.py[cod]
+minipy.log
+*.wasm
+*.log
+wasm-support/native-lib/build/
+.venv/
+out.wat
+test.wat

@@ -1,0 +1,10 @@
+module LangArrayCommon
+{
+
+    unaryop = USub | Not
+    binaryop = Add | Sub | Mul
+             | Less | LessEq | Greater | GreaterEq | Eq | NotEq | Is
+             | And | Or
+    ty = Int | Bool | Array(ty elemTy)
+    resultTy = NotVoid(ty ty) | Void
+}

@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+
+# Synchronizes files to the student repo.
+# - Get all files under git control.
+# - Remove files from BLACKLIST
+# - From the files remove, re-add those in WHITELIST
+
+BLACKLIST = ["src/compilers/", "src/parsers/"]
+WHITELIST: list[str] = []
+
+from shell import *
+import argparse
+import shutil
+
+TOP_DIR = abspath(pjoin(THIS_DIR, ".."))
+cd(TOP_DIR)
+
+STUD_REPO = pjoin(TOP_DIR, "../compiler-construction-student")
+
+_debug = False
+def debug(s: str):
+    if _debug:
+        print(f'[DEBUG] {s}')
+
+def include(f: str):
+    if f.startswith('./'):
+        f = f[2:]
+    for b in BLACKLIST:
+        if f.startswith(b):
+            for w in WHITELIST:
+                if f.startswith(w):
+                    return True
+            return False
+    return True
+
+def copy(f: str, tmpDir: str):
+    if not exists(f):
+        abort(f'File/directory {f} does not exist. Did it move but was not committed?')
+    if not isFile(f):
+        return
+    target = pjoin(tmpDir, f)
+    d = dirname(target)
+    mkdirs(d)
+    shutil.copy(f, target)
+
+def main():
+    files = run('git ls-files', captureStdout=splitLines).stdout
+    inc: list[str] = []
+    ex: list[str] = []
+    with tempDir(suffix='compiler-construction') as tmpDir:
+        for f in files:
+            if include(f):
+                debug(f'Copying {f} to {tmpDir}')
+                copy(f, tmpDir)
+                inc.append(f)
+            else:
+                ex.append(f)
+        print(f"Copied {len(inc)} items, excluded {len(ex)}")
+        print(f"Exluded items:")
+        for e in ex:
+            print(e)
+        rsyncExcludes = ['/.git', '/.pytest_cache', '/student', '/.test_cache', '/.venv']
+        rsyncExOpts = ' '.join([f'--exclude {x}' for x in rsyncExcludes])
+        run(f'rsync -av --delete {rsyncExOpts} {tmpDir}/ {STUD_REPO}')
+
+def parseArgs():
+    parser = argparse.ArgumentParser(description=f'Sync student repo')
+    parser.add_argument('--debug', action='store_true', default=False,
+                        help='Enable debugging output')
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    args = parseArgs()
+    _debug = args.debug
+    main()
+

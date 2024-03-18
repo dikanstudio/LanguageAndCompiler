@@ -1,0 +1,18 @@
+module LangVar
+{
+    unaryop = USub
+    binaryop = Add | Sub | Mul
+
+    exp =
+        IntConst(int value)
+        | Name(ident name)
+        | Call(ident name, exp* args)    -- print, input_int
+        | UnOp(unaryop op, exp arg)
+        | BinOp(exp left, binaryop op, exp right)
+
+    stmt =
+        StmtExp(exp)
+        | Assign(ident var, exp right)
+
+    mod = Module(stmt* stmts)
+}

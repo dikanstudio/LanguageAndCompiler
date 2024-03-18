@@ -1,0 +1,37 @@
+module LangArrayAtom
+{
+
+    atomExp =
+          IntConst(int value)
+        | BoolConst(bool value)
+        | VarName(ident var)          -- a variable defined by "var = ..."
+        | FunName(ident fun)          -- a function variable defined by "def fun(...) ..."
+        attributes(ty ty)
+
+    callTarget =
+          CallTargetBuiltin(ident var)
+        | CallTargetDirect(ident var)
+        | CallTargetIndirect(ident var, ty* params, resultTy result)
+
+    exp =
+          AtomExp(atomExp e)
+        | Call(callTarget fun, exp* args)             -- print, input_int, len, and more
+        | UnOp(unaryop op, exp arg)
+        | BinOp(exp left, binaryop op, exp right)
+        | ArrayInitDyn(atomExp len, atomExp elemInit)
+        | ArrayInitStatic(atomExp* elemInit)
+        | Subscript(atomExp array, atomExp index)
+        attributes(resultTy ty)
+
+    stmt =
+        StmtExp(exp)
+        | Assign(ident var, exp right)
+        | IfStmt(exp cond, stmt* thenBody, stmt* elseBody)
+        | WhileStmt(exp cond, stmt* body)
+        | SubscriptAssign(atomExp left, atomExp index, exp right)
+        | Return(exp? result)
+
+    fun = FunDef(ident name, funParam* params, resultTy result, stmt* body)
+
+    mod = Module(fun* funs, stmt* stmts)
+}

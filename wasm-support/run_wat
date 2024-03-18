@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    echo "USAGE: $0 FILE.wat"
+    exit 1
+fi
+
+wat2wasm $1 || exit 1
+$(dirname $0)/run_iwasm ${1%.wat}.wasm
+
