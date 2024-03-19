@@ -10,11 +10,7 @@ import common.testsupport as testsupport
 # test_parserVar, which contains tests not executed in the student repo. The reason for
 # this setup is that the parser for lang_var is not available to students.
 def importModVarParser():
-    try:
-        import parsers.lang_var.var_parser as varParser
-        return varParser
-    except ImportError as e:
-        utils.handleImportError(e)
+    return utils.importModuleNotInStudent('parsers.lang_var.var_parser')
 
 def runParserTest(file: str, lang: str, alg: p.ParseAlg):
     code = utils.readTextFile(file)

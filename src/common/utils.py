@@ -1,6 +1,7 @@
 import sys
 from typing import *
 import hashlib
+import importlib
 
 def abort(msg: str) -> Never:
     sys.stderr.write(f'ERROR: {msg}\nAborting!')
@@ -82,7 +83,11 @@ def assertNotNone[T](x: Optional[T]) -> T:
     else:
         return x
 
-def handleImportError(e: ImportError) -> Never:
-    e.add_note(f'Could not import {e.name}. Are in the student repo? '\
-                    'Then deactivate the test triggering this error.')
-    raise e
+def importModuleNotInStudent(modName: str) -> Any:
+    try:
+        m = importlib.import_module(modName)
+        return m
+    except ImportError as e:
+        e.add_note(f'Could not import {modName}. Are in the student repo? '\
+                        'Then deactivate the test triggering this error.')
+        raise e

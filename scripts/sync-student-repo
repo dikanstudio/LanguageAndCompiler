@@ -49,10 +49,14 @@ def fixReadme(d: str):
         'It is a partial copy of the main repository.**'
     newLines: list[str] = []
     p = pjoin(d, 'README.md')
+    found = False
     for l in open(p).readlines():
         if l.startswith(prefix):
             l = studentWarning + '\n'
+            found = True
         newLines.append(l)
+    if not found:
+        raise ValueError(f'No warning line found in {p}')
     open(p, 'w').writelines(newLines)
 
 def main():
