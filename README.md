@@ -25,13 +25,13 @@ Installation instructions can be found at the end of this document.
 
 # Commands
 
-You start the interpreter and the compiler through the `./run` script or via
+You start the interpreter and the compiler through the `scripts/run` script or via
 `python src/main.py`. Here are the three most common ways of invocation:
 
-* `./run interp FILE.py` runs the input file `FILE.py` throught the interpreter.
-* `./run compile FILE.py` compiles input file `FILE.py`, the compilation result will
+* `scripts/run interp FILE.py` runs the input file `FILE.py` throught the interpreter.
+* `scripts/run compile FILE.py` compiles input file `FILE.py`, the compilation result will
 be placed in textual form in `out.wat`.
-* `./run run FILE.py` compiles the input file and runs the resulting wasm code with iwasm.
+* `scripts/run run FILE.py` compiles the input file and runs the resulting wasm code with iwasm.
 
 Use the `--help` option to see all available options.
 
@@ -66,17 +66,17 @@ following configuration option:
 "python.analysis.typeCheckingMode": "strict"
 ```
 
-You can run the type checker manually with the `./tycheck` command.
+You can run the type checker manually with the `scripts/tycheck` command.
 
 ## Tests
 
 The `test_files` directory contains many tests for the different languages. We
 use [pytest](https://docs.pytest.org/en/8.0.x/) for executing the tests.
 
-The `./run-tests` command runs all tests. Here is how to run only a subset of the tests:
+The `scripts/run-tests` command runs all tests. Here is how to run only a subset of the tests:
 
 ```
-./run-tests FILES_OR_DIRECTORIES -k TEST_NAME_PATTERN
+scripts/run-tests FILES_OR_DIRECTORIES -k TEST_NAME_PATTERN
 ```
 
 Adding new tests is simple:
