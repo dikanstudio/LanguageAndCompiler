@@ -18,4 +18,4 @@ jobs:
           bash docker/check-image-uptodate
       - name: Test
         run: |
-          ./check
+          ./scripts/check
