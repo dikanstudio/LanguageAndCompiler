@@ -28,15 +28,16 @@ import argparse
 from dataclasses import dataclass
 from typing import *
 import sys
+import subprocess
 
 _debug = False
 def debug(s: str):
     if _debug:
-        print(f'[DEBUG] {s}')
+        sys.stderr.write(f'[DEBUG] {s}\n')
 
 def abort(s: str) -> Never:
-    print(f'ERROR: {s}')
-    print('Aborting')
+    sys.stderr.write(f'ERROR: {s}\n')
+    sys.stderr.write('Aborting\n')
     sys.exit(1)
 
 type Exercise = Literal['var', 'loop', 'array', 'fun', 'assembly', 'optimize', 'parser']
@@ -82,16 +83,18 @@ def doWork(cfg: Config, tmpDir: str):
     debug(f'student src dir: {studSrcDir}')
     shell.cp(studSrcDir, topDir)
     genPytestIni(topDir, cfg.exercise)
-    checkCmd = shell.pjoin(topDir, 'scripts/check')
+    checkScript = shell.pjoin(topDir, 'scripts/check')
+    checkCmd = 'bash ' + checkScript
     debug(f'Running {checkCmd} ...')
-    res = shell.run(checkCmd, onError='ignore')
+    res = subprocess.run(checkCmd, shell=True)
+    ecode = res.returncode
     print()
-    if res.exitcode == 0:
+    if ecode == 0:
         print('All good!')
     else:
-        print('Checks not successful, try again but please run scripts/check locally first')
+        print(f'Checks not successful (exit code: {ecode}). Try again, but please run scripts/check locally first.')
     debug(f'tmpDir={tmpDir}')
-    shell.exit(res.exitcode)
+    shell.exit(ecode)
 
 def parseArgs():
     parser = argparse.ArgumentParser(description=f'Sync student repo')
@@ -103,7 +106,8 @@ def parseArgs():
                         help='test directory (for testing, default is /external)')
     parser.add_argument('exercise', metavar='EX', choices=VALID_EXERCISES,
                         help='specify exercise to check')
-    return parser.parse_args()
+    (args, _) = parser.parse_known_args()
+    return args
 
 def main():
     args = parseArgs()

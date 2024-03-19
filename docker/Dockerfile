@@ -34,9 +34,10 @@ RUN apt-get clean && apt-get update && apt-get install -y \
 
 RUN apt-get install -y \
   wabt \
-  graphviz \
-  nodejs \
-  npm
+  graphviz
+
+RUN curl -sL https://deb.nodesource.com/setup_21.x | bash
+RUN apt-get install -y nodejs
 
 RUN useradd -m praktomat
 
@@ -60,7 +61,8 @@ RUN mkdir -p /cc-support/wasm-support
 COPY ./requirements.txt /cc-support/requirements.txt
 COPY ./package.json /cc-support/package.json
 RUN pip install -r /cc-support/requirements.txt
-RUN cd /cc-support && npm install --global
+RUN cd /cc-support && npm install && \
+  ln -s /cc-support/node_modules/.bin/pyright /usr/local/bin/pyright
 
 COPY ./wasm-support /cc-support/wasm-support
 RUN cd /cc-support/wasm-support && rm -rf native-lib/build
