@@ -6,7 +6,7 @@ import common.constants as constants
 
 def run(wasm: str, input: str|None) -> shell.RunResult:
     log.info(f'Running the program')
-    cmd = ['timeout', '10s', './wasm-support/run_iwasm', wasm]
+    cmd = ['timeout', '10s', 'bash', './wasm-support/run_iwasm', wasm]
     res = shell.run(cmd, onError='ignore', captureStdout=True, captureStderr=True, input=input)
     if res.exitcode != 0:
         res = shell.RunResult(res.stderr, res.stderr, constants.RUN_ERROR_EXIT_CODE)

@@ -1,0 +1,8 @@
+{
+    "name": "compiler-construction",
+    "version": "1.0.0",
+    "description": "",
+    "dependencies": {
+        "pyright": "^1.1.354"
+    }
+}

@@ -2,6 +2,11 @@
 
 cd $(dirname $0)/..
 
-./scripts/tycheck || exit 1
-./scripts/run-tests || exit 1
+echo "Running the type checker ..."
+bash ./scripts/tycheck || exit 1
+echo "[OK] type checker"
+echo
+echo "Running the unit tests ..."
+bash ./scripts/run-tests || exit 1
+echo "[OK] unit tests"
 

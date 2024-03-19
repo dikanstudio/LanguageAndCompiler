@@ -9,8 +9,7 @@ ENV TZ Europe/Berlin
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Install required packages here
-RUN apt-get clean && apt-get update
-RUN apt-get install -yq \
+RUN apt-get clean && apt-get update && apt-get install -y \
   locales \
   tzdata \
   git \
@@ -31,10 +30,14 @@ RUN apt-get install -yq \
   g++-multilib \
   libgcc-9-dev \
   lib32gcc-9-dev \
-  ccache \
+  ccache
+
+RUN apt-get install -y \
   wabt \
-  graphviz \
-  && rm -rf /var/lib/apt/lists/*
+  graphviz
+
+RUN curl -sL https://deb.nodesource.com/setup_21.x | bash
+RUN apt-get install -y nodejs
 
 RUN useradd -m praktomat
 
@@ -56,9 +59,10 @@ RUN bash /install-iwasm-linux.sh
 
 RUN mkdir -p /cc-support/wasm-support
 COPY ./requirements.txt /cc-support/requirements.txt
+COPY ./package.json /cc-support/package.json
 RUN pip install -r /cc-support/requirements.txt
-# trigger pyright installation
-RUN pyright
+RUN cd /cc-support && npm install && \
+  ln -s /cc-support/node_modules/.bin/pyright /usr/local/bin/pyright
 
 COPY ./wasm-support /cc-support/wasm-support
 RUN cd /cc-support/wasm-support && rm -rf native-lib/build
