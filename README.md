@@ -110,9 +110,10 @@ preferred way to get everything running under Windows.
   the textual representation of Wasm to binary form.
 * GNU make
 * cmake, to build the native extension functions for wasm-micro-runtime.
-* Optional, for visualizing graph trees: graphviz
+* nodejs and npm
 * bash
 * [SPIM](https://spimsimulator.sourceforge.net/), a MIPS32 simulator.
+* Optional, for visualizing graph trees: graphviz
 * Supported platforms: Mac OSX and Linux. Windows should work as well, but I did not test. I recommand using docker if you are running Windows.
 
 ## Alternative 1: Use docker
@@ -149,7 +150,10 @@ Please contact the maintainer of this repository if a new docker image is needed
 
 ## Alternative 2: Install everything by hand
 
-The following installation instruction should work under Mac OSX and Linux.
+The following installation instruction should work under Mac OSX and Linux. Make sure
+you install all tools mentioned in the list above. Below, you find more detailed instructions
+for some but not all required tools.
+
 I did not test under Windows, feel free to create a pull request to
 add instructions for Windows.
 
@@ -184,6 +188,15 @@ Here is how to build the native extension functions for the [iwasm](https://gith
 $ cd wasm-support
 $ make native WAMR_ROOT_DIR=/PATH_TO_CHECKOUT/wasm-micro-runtime
 ```
+
+## Install pyright
+
+You need to install nodejs and npm first. Then execute
+
+```
+$ npm install
+```
+
 
 ### Verifying your installation
 
