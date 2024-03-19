@@ -1,3 +1,5 @@
+[![Python CI](https://github.com/HSO-swehr/compiler-construction-student/actions/workflows/github-action-test-python.yml/badge.svg)](https://github.com/HSO-swehr/compiler-construction-student/actions/workflows/github-action-test-python.yml)
+
 # Introduction
 
 This repository implements a compiler from a statically typed subset of Python to Wasm.

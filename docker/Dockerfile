@@ -36,6 +36,11 @@ RUN apt-get install -yq \
   graphviz \
   && rm -rf /var/lib/apt/lists/*
 
+RUN useradd -m praktomat
+
+# We use a fresh tmpfs with /home in each container
+RUN chmod 1777 /home
+
 # Setup locale
 RUN locale-gen en_US.UTF-8
 RUN update-locale LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8
