@@ -1,4 +1,7 @@
 {
     "python.analysis.typeCheckingMode": "strict",
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "python.autoComplete.extraPaths": [
+        "/Users/swehr/.vscode/extensions/stefanwehr.write-your-python-program-1.0.6/python/src/"
+    ]
 }

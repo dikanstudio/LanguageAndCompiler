@@ -7,7 +7,6 @@ import common.utils as utils
 import common.log as log
 import common.constants as constants
 import parsers.lang_simple.simple_parser as simple_parser
-import compilers.assembly.tac_interp as tac_interp
 import importlib
 import shell
 import sys
@@ -165,6 +164,10 @@ def main():
                 genericParser.parseWithOwnParser(args.input, parserArgs, ast, parseFun)
         case "tacInterp":
             compileArgs = genericCompiler.Args(args.input, '/tmp/dummy.wasm', args.wat2wasm, 1, 1)
+            try:
+                import compilers.assembly.tac_interp as tac_interp
+            except ImportError as e:
+                utils.handleImportError(e)
             tac_interp.interpFile(compileArgs, args.print_tac)
         case _:
             utils.abort(f'Unknown command: {args.cmd}')

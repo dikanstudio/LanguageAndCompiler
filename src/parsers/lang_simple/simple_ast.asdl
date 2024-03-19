@@ -1,0 +1,8 @@
+module LangVar
+{
+    binaryop = Add | Mul
+
+    exp =
+        IntConst(int value)
+        | BinOp(exp left, binaryop op, exp right)
+}

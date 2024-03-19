@@ -6,7 +6,7 @@
 # - From the files remove, re-add those in WHITELIST
 
 BLACKLIST = ["src/compilers/", "src/parsers/"]
-WHITELIST: list[str] = []
+WHITELIST: list[str] = ["src/parsers/common.py", "src/parsers/lang_simple"]
 
 from shell import *
 import argparse
@@ -59,9 +59,17 @@ def main():
         print(f"Exluded items:")
         for e in ex:
             print(e)
-        rsyncExcludes = ['/.git', '/.pytest_cache', '/student', '/.test_cache', '/.venv']
+        rsyncExcludes = ['/.git', '/.pytest_cache', '/student', '/.test_cache', '/.venv',
+                         '__pycache__']
         rsyncExOpts = ' '.join([f'--exclude {x}' for x in rsyncExcludes])
-        run(f'rsync -av --delete {rsyncExOpts} {tmpDir}/ {STUD_REPO}')
+        print()
+        print(f'Syncing to {STUD_REPO} via rsync ...')
+        res = run(f'rsync --checksum --archive --verbose --delete {rsyncExOpts} {tmpDir}/ {STUD_REPO}',
+                  captureStdout=splitLines)
+        for l in res.stdout:
+            l = l.rstrip()
+            if not isDir(l):
+                print(l)
 
 def parseArgs():
     parser = argparse.ArgumentParser(description=f'Sync student repo')

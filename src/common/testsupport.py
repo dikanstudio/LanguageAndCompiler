@@ -140,4 +140,3 @@ def collectTestFiles(baseDirs: list[str] = ['test_files'],
         return filteredResult
     else:
         return result
-

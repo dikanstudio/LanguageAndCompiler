@@ -81,3 +81,8 @@ def assertNotNone[T](x: Optional[T]) -> T:
         raise ValueError('Got unexpected None value')
     else:
         return x
+
+def handleImportError(e: ImportError) -> Never:
+    e.add_note(f'Could not import {e.name}. Are in the student repo? '\
+                    'Then deactivate the test triggering this error.')
+    raise e

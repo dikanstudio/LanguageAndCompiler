@@ -1,0 +1,8 @@
+INT: /[0-9]+/
+WS: /[ \t\f\r\n]/+
+%ignore WS
+
+exp: INT          -> int_exp
+    | exp "+" exp -> add_exp
+    | exp "*" exp -> mul_exp
+    | "(" exp ")" -> paren_exp

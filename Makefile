@@ -10,7 +10,7 @@ all: src/lang_var/var_ast.py src/lang_loop/loop_ast.py \
 	src/lang_fun/fun_ast.py \
 	src/lang_fun/fun_astAtom.py \
 	src/parsers/lang_simple/simple_ast.py \
-	src/compilers/assembly/tac_ast.py
+	src/tac/tac_ast.py
 
 %.py: %.asdl $(wildcard src/asdl/*.py)
 	$(ASDL2PY) --out $@ $<

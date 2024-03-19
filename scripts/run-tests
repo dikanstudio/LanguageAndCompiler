@@ -2,8 +2,15 @@
 
 cd $(dirname $0)/..
 
-PYTEST=.venv/bin/pytest
-if [ ! -x "$PYTEST" -o -d /cc-support ]; then
-    PYTEST=pytest
+STUD_CFG=student/pytest.ini
+
+if [ -e "$STUD_CFG" ]; then
+    cfg_opt="--config-file=$STUD_CFG"
 fi
-PYTHONPATH=./src:$PYTHONPATH $PYTEST -s --tb=short "$@"
+
+pytest=.venv/bin/pytest
+if [ ! -x "$PYTEST" -o -d /cc-support ]; then
+    pytest=pytest
+fi
+
+PYTHONPATH=./src:./test:$PYTHONPATH $pytest $cfg_opt --strict-config --capture=no --tb=short "$@"
