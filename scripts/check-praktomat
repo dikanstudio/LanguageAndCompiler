@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+
+# This script is executed in the docker image created for the dependencies of this
+# repo (see Dockerfile in /docker).
+# - The current directory contains the student submission. We take to code from this directory.
+# - The directory /external contains a checkout of the compiler-construction-student repo. We
+#   take the tests from this directory.
+#
+# Plan
+# - find directory that contains the src directory.
+# - run /external/scripts/check on the files in src, adjusting pytest.ini to execute
+#   the right tests.
+#
+# The simpliest way to make this plan happen is the following:
+# - create a new temporary directory D
+# - copy /external/* to this directory
+# - remove D/src
+# - copy src from student submission to D
+# - generate D/student/pytest.ini
+# - execute D/scripts/check
+#
+# Potential sanity check: compare student files with files in /external and output
+# a warning if difference is found for some file not inside src. We could use 'diff -r'
+# for this.
+
+import shell
+import argparse
+from dataclasses import dataclass
+from typing import *
+import sys
+
+_debug = False
+def debug(s: str):
+    if _debug:
+        print(f'[DEBUG] {s}')
+
+def abort(s: str) -> Never:
+    print(f'ERROR: {s}')
+    print('Aborting')
+    sys.exit(1)
+
+type Exercise = Literal['var', 'loop', 'array', 'fun', 'assembly', 'optimize', 'parser']
+VALID_EXERCISES = ['var', 'loop', 'array', 'fun', 'assembly', 'optimize', 'parser']
+
+@dataclass
+class Config:
+    studDir: str
+    testDir: str
+    exercise: Exercise
+
+def findStudSrcDir(d: str) -> str:
+    return shell.pjoin(d, "src")
+
+def copyTestDir(testDir: str, targetDir: str) -> str:
+    debug(f'Copying testDir={testDir} to targetDir={targetDir}')
+    testDir = shell.abspath(testDir)
+    shell.cp(testDir, targetDir)
+    d = shell.pjoin(targetDir, shell.basename(testDir))
+    shell.rmdir(shell.pjoin(d, 'src'), True)
+    return d
+
+def genPytestIni(topDir: str, ex: Exercise):
+    match ex:
+        case 'var': opt = "-k 'test_compiler[var'"
+        case 'loop': opt = "-k 'test_compiler[loop'"
+        case 'array': opt = "-k 'test_compiler[array'"
+        case 'fun': opt = "-k 'test_compiler[fun'"
+        case _:
+            abort(f"Don't know how to generate pytest.ini for exercise kind {ex}")
+    indent = 15 * ' '
+    pytestCfg= """[pytest]
+addopts = -k 'not test_compiler and not test_tacInterp and not test_varParser'
+""" + indent + opt
+    cfgPath = shell.pjoin(topDir, 'student/pytest.ini')
+    open(cfgPath, 'w').write(pytestCfg)
+
+def doWork(cfg: Config, tmpDir: str):
+    debug(f'cfg={cfg}, tmpDir={tmpDir}')
+    topDir = copyTestDir(cfg.testDir, tmpDir)
+    debug(f'Copied test directory {cfg.testDir}, topDir={topDir}')
+    studSrcDir = findStudSrcDir(cfg.studDir)
+    debug(f'student src dir: {studSrcDir}')
+    shell.cp(studSrcDir, topDir)
+    genPytestIni(topDir, cfg.exercise)
+    checkCmd = shell.pjoin(topDir, 'scripts/check')
+    debug(f'Running {checkCmd} ...')
+    res = shell.run(checkCmd, onError='ignore')
+    print()
+    if res.exitcode == 0:
+        print('All good!')
+    else:
+        print('Checks not successful, try again but please run scripts/check locally first')
+    debug(f'tmpDir={tmpDir}')
+    shell.exit(res.exitcode)
+
+def parseArgs():
+    parser = argparse.ArgumentParser(description=f'Sync student repo')
+    parser.add_argument('--debug', action='store_true', default=False,
+                        help='Enable debugging output')
+    parser.add_argument('--student-dir', metavar='DIR',
+                        help='student directory (for testing, normally set implicitly over cwd)')
+    parser.add_argument('--test-dir', metavar='DIR',
+                        help='test directory (for testing, default is /external)')
+    parser.add_argument('exercise', metavar='EX', choices=VALID_EXERCISES,
+                        help='specify exercise to check')
+    return parser.parse_args()
+
+def main():
+    args = parseArgs()
+    if args.debug:
+        global _debug
+        _debug = True
+    with shell.tempDir(delete=False) as d:
+        studDir = args.student_dir or '.'
+        testDir = args.test_dir or '/external'
+        cfg = Config(studDir, testDir, args.exercise)
+        doWork(cfg, d)
+
+if __name__ == '__main__':
+    main()
+

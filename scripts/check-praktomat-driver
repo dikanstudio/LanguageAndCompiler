@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# This script is uploaded to the praktomat task as a script checker.
+
+/external/scripts/check-praktomat "$@"

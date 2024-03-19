@@ -9,3 +9,4 @@ wasm-support/native-lib/build/
 .venv/
 out.wat
 test.wat
+*.zip

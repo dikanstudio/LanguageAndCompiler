@@ -13,4 +13,4 @@ if [ ! -x "$PYTEST" -o -d /cc-support ]; then
     pytest=pytest
 fi
 
-PYTHONPATH=./src:./test:$PYTHONPATH $pytest $cfg_opt --strict-config --capture=no --tb=short "$@"
+PYTHONPATH=./src:$PYTHONPATH $pytest $cfg_opt --strict-config --capture=no --tb=short "$@"

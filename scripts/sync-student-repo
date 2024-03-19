@@ -47,16 +47,20 @@ def fixReadme(d: str):
     prefix = '**NOTE: do not pass to students'
     studentWarning = '**NOTE: this is the student repository. ' \
         'It is a partial copy of the main repository.**'
+    studentBadge = '[![Python CI](https://github.com/HSO-swehr/compiler-construction-student/actions/workflows/github-action-test-python.yml/badge.svg)](https://github.com/HSO-swehr/compiler-construction-student/actions/workflows/github-action-test-python.yml)'
     newLines: list[str] = []
     p = pjoin(d, 'README.md')
-    found = False
+    found = 0
     for l in open(p).readlines():
         if l.startswith(prefix):
             l = studentWarning + '\n'
-            found = True
+            found += 1
+        elif l.startswith('[![Python CI]'):
+            l = studentBadge + '\n'
+            found += 1
         newLines.append(l)
-    if not found:
-        raise ValueError(f'No warning line found in {p}')
+    if found != 2:
+        raise ValueError(f'No warning line and/or no badge line found in {p}')
     open(p, 'w').writelines(newLines)
 
 def main():
