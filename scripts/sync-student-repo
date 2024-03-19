@@ -43,6 +43,18 @@ def copy(f: str, tmpDir: str):
     mkdirs(d)
     shutil.copy(f, target)
 
+def fixReadme(d: str):
+    prefix = '**NOTE: do not pass to students'
+    studentWarning = '**NOTE: this is the student repository. ' \
+        'It is a partial copy of the main repository.**'
+    newLines: list[str] = []
+    p = pjoin(d, 'README.md')
+    for l in open(p).readlines():
+        if l.startswith(prefix):
+            l = studentWarning + '\n'
+        newLines.append(l)
+    open(p, 'w').writelines(newLines)
+
 def main():
     files = run('git ls-files', captureStdout=splitLines).stdout
     inc: list[str] = []
@@ -59,6 +71,7 @@ def main():
         print(f"Exluded items:")
         for e in ex:
             print(e)
+        fixReadme(tmpDir)
         rsyncExcludes = ['/.git', '/.pytest_cache', '/student', '/.test_cache', '/.venv',
                          '__pycache__']
         rsyncExOpts = ' '.join([f'--exclude {x}' for x in rsyncExcludes])

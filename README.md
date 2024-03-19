@@ -21,7 +21,7 @@ strict mode.
 
 Installation instructions can be found at the end of this document.
 
-**NOTE: do not pass to students, this repository contains all solutions!**
+**NOTE: this is the student repository. It is a partial copy of the main repository.**
 
 # Commands
 
@@ -94,9 +94,14 @@ Adding new tests is simple:
 
 # Installation
 
-Requirements:
+See below for a list of requirements.
+You can either install the requirements on your local system (alternative 2) or
+you can use a prebuilt docker image (alternative 1). Using docker seems to be the
+preferred way to get everything running under Windows.
 
-* Python version 3.12
+## Requirements
+
+* Python version 3.12.x (3.11 does not work)
 * iwasm virtual from the [wasm-micro-runtime](https://github.com/bytecodealliance/wasm-micro-runtime) package,
   a virtual machine for Wasm.
 * [wabt](https://github.com/webassembly/wabt), which contains the `wat2wasm` tool for converting
@@ -104,11 +109,9 @@ Requirements:
 * GNU make
 * cmake, to build the native extension functions for wasm-micro-runtime.
 * Optional, for visualizing graph trees: graphviz
+* bash
+* [SPIM](https://spimsimulator.sourceforge.net/), a MIPS32 simulator.
 * Supported platforms: Mac OSX and Linux. Windows should work as well, but I did not test. I recommand using docker if you are running Windows.
-
-You can either install the requirements on your local system (alternative 2, see below) or
-you can use a prebuilt docker image (alternative 1). Using docker seems to be the
-preferred way to get everything running under Windows.
 
 ## Alternative 1: Use docker
 
@@ -126,8 +129,8 @@ You need to perform the following steps:
 $ docker run -v .:/cc -ti skogsbaer/compiler-construction-wasm_linux-amd64:latest bash
 ```
 
-Inside the shell, you can now run all tests (`./run-tests`) or type check your code
-(`./tycheck`).
+Inside the shell, you can now run all tests (`scripts/run-tests`) or type check your code
+(`scripts/tycheck`).
 
 There are different docker images for x86 and arm:
 
@@ -182,5 +185,5 @@ $ make native WAMR_ROOT_DIR=/PATH_TO_CHECKOUT/wasm-micro-runtime
 
 ### Verifying your installation
 
-You can now use `./run-tests` from the toplevel directory to run all tests.
+You can now use `scripts/run-tests` from the toplevel directory to run all tests.
 If this works, your setup is complete.
