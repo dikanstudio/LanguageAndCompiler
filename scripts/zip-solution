@@ -2,4 +2,4 @@
 
 cd $(dirname $0)/..
 zip_file="submission_$(date +'%Y%m%d%H%M%S').zip"
-git ls-files | xargs zip "$zip_file"
+find src -not -name '*.pyc' -not -name __pycache__ | xargs zip "$zip_file"
