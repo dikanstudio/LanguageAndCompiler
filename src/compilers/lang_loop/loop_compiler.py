@@ -35,9 +35,15 @@ def compileExp(exp: exp) -> list[WasmInstr]:
                 instrs += compileExp(arg)
             # map print to print_i64 and input_int to input_i64
             if name.name == 'print':
-                instrs.append(WasmInstrCall(WasmId('$print_i64')))
+                if exp.ty == Void() and tyOfExp(args[0]) == Int():
+                    instrs.append(WasmInstrCall(WasmId('$print_i64')))
+                else:
+                    instrs.append(WasmInstrCall(WasmId('$print_i32')))
             elif name.name == 'input_int':
-                instrs.append(WasmInstrCall(WasmId('$input_i64')))
+                if exp.ty == NotVoid(Int()):
+                    instrs.append(WasmInstrCall(WasmId('$input_i64')))
+                else:
+                    instrs.append(WasmInstrCall(WasmId('$input_i32')))
             else:
                 raise Exception(f'Invalid function call of {name.name} with {len(args)} arguments')
             return instrs
