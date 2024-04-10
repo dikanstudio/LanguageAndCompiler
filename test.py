@@ -1,4 +1,4 @@
-x = 4
-y = 5
-z = x + y
-print(x)
+sum = 0
+while input_int() == 0:
+    sum = sum + 1
+print(sum)
