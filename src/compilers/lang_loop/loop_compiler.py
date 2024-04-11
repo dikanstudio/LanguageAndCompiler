@@ -172,14 +172,14 @@ def compileStmts(stmts: list[stmt]) -> list[WasmInstr]:
                 label_exit = WasmId('$loop_exit')
                 label_start = WasmId('$loop_start')
 
-                body = compileExp(cond) + [WasmInstrIf(None, [], [WasmInstrBranch(label_start, False)])] + compileStmts(body) + [WasmInstrBranch(label_start, False)]
+                body = compileExp(cond) + [WasmInstrIf(None, [], [WasmInstrBranch(label_exit, False)])] + compileStmts(body) + [WasmInstrBranch(label_start, False)]
                 # create a WasmInstrBlock with the label
                 instrs.append(
                     WasmInstrBlock(
-                        label=label_start,
+                        label=label_exit,
                         result=None,
                         body=[WasmInstrLoop(
-                            label=label_exit,
+                            label=label_start,
                             body=body
                         )]
                     )
