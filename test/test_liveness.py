@@ -7,6 +7,8 @@ import assembly.tacPretty as tacPretty
 import common.testsupport as testsupport
 import pytest
 
+pytestmark = pytest.mark.instructor
+
 def buildInterfGraph(args: genCompiler.Args) -> asTypes.InterfGraph:
     import compilers.assembly.controlFlow as controlFlow
     import compilers.assembly.liveness as liveness

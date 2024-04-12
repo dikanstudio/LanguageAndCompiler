@@ -5,6 +5,8 @@ import common.log as log
 from common.utils import splitIf
 import shell
 
+pytestmark = pytest.mark.instructor
+
 def params() -> list[tuple[str, str, int]]:
     l = testsupport.collectTestFiles(['test_files'], ['var', 'simple'], ignoreErrorFiles=True)
     maxRegisters = [8, 2, 1, 0]

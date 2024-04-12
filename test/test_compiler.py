@@ -4,6 +4,8 @@ import pytest
 import common.log as log
 import common.constants as constants
 
+pytestmark = pytest.mark.instructor
+
 def run(wasm: str, input: str|None) -> shell.RunResult:
     log.info(f'Running the program')
     cmd = ['timeout', '10s', 'bash', './wasm-support/run_iwasm', wasm]

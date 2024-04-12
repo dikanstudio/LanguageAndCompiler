@@ -61,7 +61,6 @@ def copyTestDir(testDir: str, targetDir: str) -> str:
     return d
 
 def genPytestIni(topDir: str, ex: Exercise):
-    excludeTests = ['test_compiler', 'test_tacInterp', 'test_varParser', 'test_tinyJson']
     includeTests: list[str] = []
     match ex:
         case 'var': includeTests.append('test_compiler[var')
@@ -71,13 +70,10 @@ def genPytestIni(topDir: str, ex: Exercise):
         case 'parser': includeTests.extend(['test_varParser', 'test_tinyJson'])
         case _:
             abort(f"Don't know how to generate pytest.ini for exercise kind {ex}")
-    for t in includeTests:
-        if t in excludeTests:
-            excludeTests.remove(t)
-    excludeOpt = ' and '.join([f'not {t}' for t in excludeTests])
-    includeOpt = ' '.join(f"-k '{t}'" for t in includeTests)
+    incExpr = ' or '.join(includeTests)
+    opt = f"-k 'not instructor or {incExpr}'"
     pytestCfg= f"""[pytest]
-addopts = -k '{excludeOpt}' {includeOpt}
+addopts = {opt}
 """
     cfgPath = shell.pjoin(topDir, 'student/pytest.ini')
     open(cfgPath, 'w').write(pytestCfg)

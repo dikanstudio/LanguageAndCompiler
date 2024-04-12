@@ -2,6 +2,9 @@ from assembly.types import InterfGraph
 from assembly.graph import Graph
 import assembly.tac_ast as tac
 import assembly.tacSpill_ast as tacSpill
+import pytest
+
+pytestmark = pytest.mark.instructor
 
 def regAllocTester(vars: list[str],
                    deps: list[tuple[str, str]],

@@ -3,6 +3,8 @@ import pytest
 import common.utils as utils
 from typing import Any
 
+pytestmark = pytest.mark.instructor
+
 def importModTinyJsonParser() -> Any:
     return utils.importModuleNotInStudent('parsers.tinyJson.tinyJson_parser')
 
