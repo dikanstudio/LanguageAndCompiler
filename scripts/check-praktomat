@@ -61,17 +61,24 @@ def copyTestDir(testDir: str, targetDir: str) -> str:
     return d
 
 def genPytestIni(topDir: str, ex: Exercise):
+    excludeTests = ['test_compiler', 'test_tacInterp', 'test_varParser', 'test_tinyJson']
+    includeTests: list[str] = []
     match ex:
-        case 'var': opt = "-k 'test_compiler[var'"
-        case 'loop': opt = "-k 'test_compiler[loop'"
-        case 'array': opt = "-k 'test_compiler[array'"
-        case 'fun': opt = "-k 'test_compiler[fun'"
+        case 'var': includeTests.append('test_compiler[var')
+        case 'loop': includeTests.append('test_compiler[loop')
+        case 'array': includeTests.append('test_compiler[array')
+        case 'fun': includeTests.append('test_compiler[fun')
+        case 'parser': includeTests.extend(['test_varParser', 'test_tinyJson'])
         case _:
             abort(f"Don't know how to generate pytest.ini for exercise kind {ex}")
-    indent = 15 * ' '
-    pytestCfg= """[pytest]
-addopts = -k 'not test_compiler and not test_tacInterp and not test_varParser'
-""" + indent + opt
+    for t in includeTests:
+        if t in excludeTests:
+            excludeTests.remove(t)
+    excludeOpt = ' and '.join([f'not {t}' for t in excludeTests])
+    includeOpt = ' '.join(f"-k '{t}'" for t in includeTests)
+    pytestCfg= f"""[pytest]
+addopts = -k '{excludeOpt}' {includeOpt}
+"""
     cfgPath = shell.pjoin(topDir, 'student/pytest.ini')
     open(cfgPath, 'w').write(pytestCfg)
 

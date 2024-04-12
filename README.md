@@ -115,7 +115,7 @@ preferred way to get everything running.
 * nodejs and npm
 * bash
 * timeout command.
-* [SPIM](https://spimsimulator.sourceforge.net/), a MIPS32 simulator.
+* [SPIM](https://spimsimulator.sourceforge.net/), a MIPS32 simulator (version 8 or 9)
 * Optional, for visualizing graph trees: graphviz
 
 ## Alternative 1: Use docker

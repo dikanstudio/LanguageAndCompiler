@@ -21,6 +21,8 @@ def runTest(lang: str, srcFile: str, tmp: str, captureErr: bool, input: str|None
     log.info(f'Running command {cmd}')
     res = shell.run(cmd,
                     captureStderr=captureErr, captureStdout=False, onError='ignore')
+    if captureErr and res.stderr:
+        log.info(f'Output on stderr: {res.stderr}')
     if res.exitcode == 0:
         return run(shell.pjoin(tmp, 'out.wasm'), input)
     else:
