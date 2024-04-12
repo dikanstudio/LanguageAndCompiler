@@ -1,4 +1,3 @@
-import compilers.assembly.regAlloc as regAlloc
 from assembly.types import InterfGraph
 from assembly.graph import Graph
 import assembly.tac_ast as tac
@@ -8,6 +7,7 @@ def regAllocTester(vars: list[str],
                    deps: list[tuple[str, str]],
                    expectedRegs: list[tuple[str, str]],
                    maxRegs: int=4):
+    import compilers.assembly.regAlloc as regAlloc
     g: InterfGraph = Graph('undirected')
     for x in vars:
         g.addVertex(tac.Ident(x), None)

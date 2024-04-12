@@ -1,16 +1,16 @@
-import compilers.assembly.common as asCommon
 import assembly.types as asTypes
 import common.genericCompiler as genCompiler
 import shell
 import common.utils as utils
 import common.log as log
-import compilers.assembly.controlFlow as controlFlow
-import compilers.assembly.liveness as liveness
 import assembly.tacPretty as tacPretty
 import common.testsupport as testsupport
 import pytest
 
 def buildInterfGraph(args: genCompiler.Args) -> asTypes.InterfGraph:
+    import compilers.assembly.controlFlow as controlFlow
+    import compilers.assembly.liveness as liveness
+    import compilers.assembly.common as asCommon
     log.debug(f'Interference graph test, first compiling to TAC')
     tacInstrs = asCommon.loopToTac(args)
     log.debug(f'TAC:\n{tacPretty.prettyInstrs(tacInstrs)}')
