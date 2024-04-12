@@ -5,10 +5,12 @@ import common.utils as utils
 import common.genericParser as genericParser
 import lang_var.var_ast as var_ast
 import common.testsupport as testsupport
+from typing import Any
 
 pytestmark = pytest.mark.instructor
 
-def importModVarParser():
+# We have to import this module dynamically because it is not present in student code
+def importModVarParser() -> Any:
     return utils.importModuleNotInStudent('parsers.lang_var.var_parser')
 
 def runParserTest(file: str, lang: str, alg: p.ParseAlg):

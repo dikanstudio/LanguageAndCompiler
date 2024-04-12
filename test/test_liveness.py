@@ -10,10 +10,11 @@ import pytest
 pytestmark = pytest.mark.instructor
 
 def buildInterfGraph(args: genCompiler.Args) -> asTypes.InterfGraph:
-    import compilers.assembly.controlFlow as controlFlow
-    import compilers.assembly.liveness as liveness
-    import compilers.assembly.common as asCommon
-    log.debug(f'Interference graph test, first compiling to TAC')
+    # We have to import these modules dynamically because they are not present in student code
+    controlFlow = utils.importModuleNotInStudent('compilers.assembly.controlFlow')
+    liveness = utils.importModuleNotInStudent('compilers.assembly.liveness')
+    asCommon = utils.importModuleNotInStudent('compilers.assembly.common')
+    log.debug(f'Interference graph test, first compilin to TAC')
     tacInstrs = asCommon.loopToTac(args)
     log.debug(f'TAC:\n{tacPretty.prettyInstrs(tacInstrs)}')
     log.debug(f'Building the control flow graph ...')

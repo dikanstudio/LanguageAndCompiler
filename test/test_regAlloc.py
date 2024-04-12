@@ -2,6 +2,7 @@ from assembly.types import InterfGraph
 from assembly.graph import Graph
 import assembly.tac_ast as tac
 import assembly.tacSpill_ast as tacSpill
+import common.utils as utils
 import pytest
 
 pytestmark = pytest.mark.instructor
@@ -10,7 +11,8 @@ def regAllocTester(vars: list[str],
                    deps: list[tuple[str, str]],
                    expectedRegs: list[tuple[str, str]],
                    maxRegs: int=4):
-    import compilers.assembly.regAlloc as regAlloc
+    # We have to import this module dynamically because it is not present in student code
+    regAlloc = utils.importModuleNotInStudent('compilers.assembly.regAlloc')
     g: InterfGraph = Graph('undirected')
     for x in vars:
         g.addVertex(tac.Ident(x), None)
