@@ -71,7 +71,7 @@ def genPytestIni(topDir: str, ex: Exercise):
         case _:
             abort(f"Don't know how to generate pytest.ini for exercise kind {ex}")
     incExpr = ' or '.join(includeTests)
-    opt = f"-k 'not instructor or {incExpr}'"
+    opt = f"-k '{incExpr}'"
     pytestCfg= f"""[pytest]
 addopts = {opt}
 """
