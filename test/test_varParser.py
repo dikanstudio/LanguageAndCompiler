@@ -5,11 +5,12 @@ import common.utils as utils
 import common.genericParser as genericParser
 import lang_var.var_ast as var_ast
 import common.testsupport as testsupport
+from typing import Any
 
-# NOTE: tests in this module are also executed in student repos. There is another module
-# test_parserVar, which contains tests not executed in the student repo. The reason for
-# this setup is that the parser for lang_var is not available to students.
-def importModVarParser():
+pytestmark = pytest.mark.instructor
+
+# We have to import this module dynamically because it is not present in student code
+def importModVarParser() -> Any:
     return utils.importModuleNotInStudent('parsers.lang_var.var_parser')
 
 def runParserTest(file: str, lang: str, alg: p.ParseAlg):
