@@ -6,15 +6,24 @@ import common.utils as utils
 type Temporaries = list[tuple[atom.Ident, atom.exp]]
 
 class Ctx:
+    """
+    Context for getting fresh variable names.
+    """
     def __init__(self):
         self.freshVars: dict[ident, ty] = {}
     def newVar(self, t: ty) -> ident:
+        """
+        Get a fresh variabler of the given type.
+        """
         nameId = len(self.freshVars)
         x = Ident(f'tmp_{nameId}')
         self.freshVars[x] = t
         return x
 
 def transExpAtomic(e: exp, ctx: Ctx) -> tuple[atom.atomExp, Temporaries]:
+    """
+    Translates e to an atomic expression. Essentially a shortcut for transExp(e, True, ctx).
+    """
     (res, ts) = transExp(e, True, ctx)
     match res:
         case atom.AtomExp(a):
@@ -23,6 +32,9 @@ def transExpAtomic(e: exp, ctx: Ctx) -> tuple[atom.atomExp, Temporaries]:
             utils.abort(f'transExp with needAtom=True failed to return an atomic expression: {e}')
 
 def assertExpNotVoid(e: exp | atom.exp) -> ty:
+    """
+    Asserts that e is an expression of a non-void type.
+    """
     match e.ty:
         case None:
             raise ValueError(f'type still None after type-checking. Expression: {e}')
@@ -32,6 +44,9 @@ def assertExpNotVoid(e: exp | atom.exp) -> ty:
             return t
 
 def atomic(needAtomic: bool, e: atom.exp, tmps: Temporaries, ctx: Ctx) -> tuple[atom.exp, Temporaries]:
+    """
+    Converts e to an atomic expression of needAtomic is True.
+    """
     if needAtomic:
         t = assertExpNotVoid(e)
         tmp = ctx.newVar(t)
@@ -40,6 +55,14 @@ def atomic(needAtomic: bool, e: atom.exp, tmps: Temporaries, ctx: Ctx) -> tuple[
         return (e, tmps)
 
 def transExp(e: exp, needAtomic: bool, ctx: Ctx) -> tuple[atom.exp, Temporaries]:
+    """
+    Translates expression e (of type array_ast.exp) to an expression of type
+    array_astAtom.exp, together with a list of temporary variables used by
+    the translated expression.
+
+    If the flag needAtomic is True, then the translated expression is an atomic expression,
+    that is something of the form array_astAtom.AtomExp(...).
+    """
     t = e.ty
     match e:
         case IntConst(v):
@@ -72,9 +95,16 @@ def transExp(e: exp, needAtomic: bool, ctx: Ctx) -> tuple[atom.exp, Temporaries]
             return atomic(needAtomic, atom.Subscript(atomArr, atomIndex, t), tmps1 + tmps2, ctx)
 
 def mkAssigns(tmps: Temporaries) -> list[atom.stmt]:
+    """
+    Turns a list of temporary variables into a list of statements.
+    """
     return [atom.Assign(x, e) for (x, e) in tmps]
 
 def transStmt(s: stmt, ctx: Ctx) -> list[atom.stmt]:
+    """
+    Translates statement s (of type array_ast.stmt) to a statement of type
+    array_astAtom.stmt.
+    """
     match s:
         case StmtExp(e):
             (a, tmps) = transExp(e, False, ctx)
@@ -98,6 +128,10 @@ def transStmt(s: stmt, ctx: Ctx) -> list[atom.stmt]:
             return mkAssigns(tmps1 + tmps2 + tmps3) + [atom.SubscriptAssign(l, i, r)]
 
 def transStmts(stmts: list[stmt], ctx: Ctx) -> list[atom.stmt]:
+    """
+    Main entry point, transforming a list of statements.
+    This function is called from compilers.array_compiler.compileModule.
+    """
     result: list[atom.stmt] = []
     for s in stmts:
         result.extend(transStmt(s, ctx))
