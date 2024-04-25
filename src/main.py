@@ -7,7 +7,6 @@ import common.utils as utils
 import common.log as log
 import common.constants as constants
 import parsers.lang_simple.simple_parser as simple_parser
-import parsers.tinyJson.tinyJson_parser as tinyJson_parser
 import importlib
 import shell
 import sys
@@ -173,6 +172,7 @@ def main():
             if lang == 'simple':
                 simple_parser.parse(parserArgs)
             elif lang == 'tinyJson':
+                tinyJson_parser = utils.importModuleNotInStudent('parsers.tinyJson.tinyJson_parser')
                 f = args.input
                 x = tinyJson_parser.parse(utils.readTextFile(f))
                 print(f'Successfully parsed {f} as json.')
