@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "src/main.py",
             "console": "integratedTerminal",
-            "args": "--lang loop compile test.py"
+            "args": "--lang tinyJson parse test.json"
         }
     ]
 }
