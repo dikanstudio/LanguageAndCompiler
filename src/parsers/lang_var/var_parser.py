@@ -50,13 +50,13 @@ def parseTreeToExpAst(t: ParseTree) -> exp:
             return parseTreeToExpAst(asTree(t.children[0])) 
         case 'exp' | 'exp_1' | 'exp_2':
             return parseTreeToExpAst(asTree(t.children[0]))
-        case _:
+        case kind:
             raise Exception(f'unhandled parse tree of kind {kind} for exp: {t}')
         
 def parseTreeToStmtAst(t: ParseTree) -> stmt:
     match t.data:
         # match two possible cases
-        # like in the var file described
+        # like in the var file
         case 'exp_stmt':
             return StmtExp(parseTreeToExpAst(asTree(t.children[0])))
         case 'assign_stmt':
