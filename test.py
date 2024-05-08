@@ -1,2 +1,8 @@
-x = input_int()
-print(40 + (x + x))
+
+
+1
+x
+
+y
+
+print(1, 2)

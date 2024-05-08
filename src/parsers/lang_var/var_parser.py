@@ -31,6 +31,9 @@ def parseTreeToExpAst(t: ParseTree) -> exp:
         case 'mul_exp':
             e1, e2 = [asTree(c) for c in t.children]
             return BinOp(parseTreeToExpAst(e1), Mul(), parseTreeToExpAst(e2)) 
+        case 'usub_exp':
+            e = asTree(t.children[0])
+            return UnOp(USub(), parseTreeToExpAst(e))
         case 'var_exp':
             return Name(Ident(asToken(t.children[0])))
         case 'func_exp':
@@ -38,7 +41,11 @@ def parseTreeToExpAst(t: ParseTree) -> exp:
             func = asToken(t.children[0])
             if func == 'print':
                 # create a call to print
-                return Call(Ident('print'), [parseTreeToExpAst(asTree(t.children[2]))])
+                # check if argument is a ")" return empty
+                if len(t.children) == 3:
+                    return Call(Ident('print'), [])
+                else:
+                    return Call(Ident('print'), [parseTreeToExpAst(asTree(t.children[2]))])
             elif func == 'input_int':
                 # create a call to input_int
                 return Call(Ident('input_int'), [])
@@ -50,6 +57,8 @@ def parseTreeToExpAst(t: ParseTree) -> exp:
             return parseTreeToExpAst(asTree(t.children[0])) 
         case 'exp' | 'exp_1' | 'exp_2':
             return parseTreeToExpAst(asTree(t.children[0]))
+        case 'inner_exp':
+            return parseTreeToExpAst(asTree(t.children[0]))
         case kind:
             raise Exception(f'unhandled parse tree of kind {kind} for exp: {t}')
         
@@ -60,7 +69,12 @@ def parseTreeToStmtAst(t: ParseTree) -> stmt:
         case 'exp_stmt':
             return StmtExp(parseTreeToExpAst(asTree(t.children[0])))
         case 'assign_stmt':
-            var, exp = [asTree(c) for c in t.children]
+            # extract the variable and the expression
+            try:
+                var, exp = [c for c in t.children]
+            except:
+                # parse tree again
+                var, exp = [c for c in asTree(t.children[0]).children]
             return Assign(Ident(asToken(var)), parseTreeToExpAst(asTree(exp)))
         case kind:
             raise Exception(f'unhandled parse tree of kind {kind} for stmt: {t}')

@@ -1,39 +1,31 @@
 %import common (NEWLINE, WS_INLINE, SH_COMMENT, CNAME, INT)
-%ignore SH_COMMENT
+
 %ignore WS_INLINE
+%ignore SH_COMMENT
 
-# WS: /[ \t\f\r\n]/+
-# %ignore WS
+assignment: CNAME "=" exp  -> assign_stmt
 
-# Klammern
+inner_exp: exp ("," exp)*
+
 LPAR: "("
 RPAR: ")"
 
-# Funktionsaufrufe mit CNAME
-func_call: CNAME LPAR (exp ("," exp)*)? RPAR  -> func_call
+exp_2: INT                      -> int_exp
+     | CNAME                    -> var_exp
+     | "-" exp_2                -> usub_exp  
+     | "(" exp ")"              -> paren_exp
+     | CNAME LPAR inner_exp? RPAR -> func_exp
 
-# Regel für Zuweisungen
-assignment: CNAME "=" exp  -> assign_stmt
+exp_1: exp_1 "*" exp_2 -> mul_exp
+     | exp_2           -> exp_2
 
-# Ausdrucksregeln
-exp_2: INT            -> int_exp
-     | func_call      -> func_exp
-     | CNAME          -> var_exp
-     | LPAR exp RPAR  -> paren_exp
+exp: exp "+" exp_1    -> add_exp
+   | exp "-" exp_1    -> sub_exp
+   | exp_1            -> exp_1
 
-exp_1: exp_1 "*" exp_2  -> mul_exp
-     | exp_2            -> exp_2
+stmt: assignment NEWLINE    -> assign_stmt
+    | exp NEWLINE           -> exp_stmt    
 
-exp: exp "+" exp_1      -> add_exp
-   | exp "-" exp_1      -> sub_exp
-   | exp_1              -> exp_1
+file: NEWLINE* stmt*
 
-# Statement-Regel
-stmt: assignment        -> assign_stmt
-    | exp               -> exp_stmt
-
-# Programmregel: Eine Serie von Statements, durch NEWLINE getrennt
-file: (stmt NEWLINE)*  # Erlaubt eine oder mehrere Zeilenumbrüche zwischen Statements
-
-# Startsymbol
 lvar: file
