@@ -1,8 +1,1 @@
-
-
-1
-x
-
-y
-
-print(1, 2)
+print(input_int(3))

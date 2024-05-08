@@ -14,6 +14,19 @@ def parse(args: ParserArgs) -> exp:
     log.debug(f'AST: {ast}')
     return ast
 
+# parse Help receives a tree and returns the expression
+def parseHelp(t: ParseTree) -> list[exp]:
+    match t.data:
+        case 'inner_exp':
+            if len (t.children) == 2:
+                return [parseTreeToExpAst(asTree(t.children[0])), parseTreeToExpAst(asTree(t.children[1]))]
+            else:
+                return [parseTreeToExpAst(asTree(t.children[0]))]
+        case _:
+            return [parseTreeToExpAst(asTree(t))]
+    return []  # Add this line to return an empty list if none of the cases match.
+        
+
 def parseTreeToExpAst(t: ParseTree) -> exp:
     match t.data:
         # case 'int_exp' to return IntConst
@@ -45,19 +58,25 @@ def parseTreeToExpAst(t: ParseTree) -> exp:
                 if len(t.children) == 3:
                     return Call(Ident('print'), [])
                 else:
-                    return Call(Ident('print'), [parseTreeToExpAst(asTree(t.children[2]))])
+                    tempType = asTree(t.children[2]).data
+                    if tempType == 'inner_exp':
+                        return parseTreeToExpAst(asTree(t.children[2]))
+                    else:
+                        return Call(Ident('print'), [parseTreeToExpAst(asTree(t.children[2]))])
+
             elif func == 'input_int':
                 # create a call to input_int
-                return Call(Ident('input_int'), [])
+                if t.children[2] == Token('RPAR', ')'):
+                    return Call(Ident('input_int'), [])
+                else:
+                    return Call(Ident('input_int'), parseHelp(asTree(t.children[2])))
             else:
-                raise Exception(f'unhandled function {func}')
+                return Call(Ident(func), parseHelp(asTree(t.children[2])))
         case 'paren_exp':
-            return parseTreeToExpAst(asTree(t.children[1]))
-        case 'line_exp':
-            return parseTreeToExpAst(asTree(t.children[0])) 
-        case 'exp' | 'exp_1' | 'exp_2':
             return parseTreeToExpAst(asTree(t.children[0]))
         case 'inner_exp':
+            return Call(Ident('print'), parseHelp(t))
+        case 'exp' | 'exp_1' | 'exp_2':
             return parseTreeToExpAst(asTree(t.children[0]))
         case kind:
             raise Exception(f'unhandled parse tree of kind {kind} for exp: {t}')
