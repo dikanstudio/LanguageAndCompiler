@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "src/main.py",
             "console": "integratedTerminal",
-            "args": "--lang var parse --alg lalr test.py"
+            "args": "--lang array compile test.py"
         }
     ]
 }

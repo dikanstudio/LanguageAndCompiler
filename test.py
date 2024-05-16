@@ -1,1 +1,1 @@
-print(input_int(3))
+m = [1,2,0]
