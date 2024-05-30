@@ -26,6 +26,14 @@ def tyInArr(exp: exp) -> ty:
         case _:
             raise Exception(f'Invalid type {exp.ty} in array')
 
+def forTyRetByte(ty: ty) -> int:
+    match ty:
+        case Int():
+            return 8
+        case Bool():
+            return 4
+        case Array(_):
+            return 4
 
 def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
     # debug info - analyze the expression
@@ -159,17 +167,78 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                     return [WasmInstrVarLocal('get', WasmId("$" + name.name))]
         # translate ArrayInitDyn
         case ArrayInitDyn(lenExp, elemInit):
-            raise Exception(f'ArrayInitDyn not implemented')
-        # translate ArrayInitStatic
+            # this leaves the array address on top of the stack
+            init_array = compileInitArray(lenExp, tyInArr(exp), cfg)
+            # first element has offset of four and the value 
+            instrs = []
+            instrs.append(WasmInstrVarLocal('tee', WasmId('$@tmp_i32')))
+            instrs.append(WasmInstrVarLocal('get', WasmId('$@tmp_i32')))
+            instrs.append(WasmInstrConst('i32', 4))
+            instrs.append(WasmInstrNumBinOp('i32', 'add'))
+            # set tmp_i32 to the address of the first element
+            instrs.append(WasmInstrVarLocal('set', WasmId('$@tmp_i32')))
+            # create a block with the loop where block $loop_exit and loop $loop_start
+            instrs.append(WasmInstrBlock(
+                label=WasmId('$loop_exit'),
+                result=None,
+                body=[
+                    WasmInstrLoop(
+                        label=WasmId('$loop_start'),
+                        body=[
+                            WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
+                            WasmInstrVarGlobal('get', WasmId('$@free_ptr')),
+                            WasmInstrIntRelOp('i32', 'lt_u'),
+                            WasmInstrIf(None, [WasmInstrBranch(WasmId('$loop_exit'), False)], []),
+                            WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
+                            compileExp(elemInit, cfg),
+                            WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'store'),
+                            WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
+                            # size of the element
+                            WasmInstrConst('i32', forTyRetByte(tyInArr(exp))),
+                            WasmInstrNumBinOp('i32', 'add'),
+                            WasmInstrVarLocal('set', WasmId('$@tmp_i32')),
+                            WasmInstrBranch(WasmId('$loop_start'), False)
+                        ]
+                    )
+                ]
+            ))
+            init_array += instrs
+            pprint(init_array)
+            return init_array
+                    
         case ArrayInitStatic(elemInit):
+            # this leaves the array address on top of the stack
             init_array = compileInitArray(IntConst(len(elemInit)), tyInArr(exp), cfg)
+            # first element has offset of four and the value 
+            instrs = []
+            instrs.append(WasmInstrVarLocal('tee', WasmId('$@tmp_i32')))
+            instrs.append(WasmInstrVarLocal('get', WasmId('$@tmp_i32')))
+            instrs.append(WasmInstrConst('i32', 4))
+            instrs.append(WasmInstrNumBinOp('i32', 'add'))
+            # add first element to the array
+            instrs += compileExp(elemInit[0], cfg)
+            instrs.append(WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'store'))
+            # if type int sotre i64 else i32
+            init = 4
+            offset_counter = 8 if tyInArr(exp) == Int() else 4
+            # loop through the rest of the elements
+            for i in range(1, len(elemInit)):
+                instrs.append(WasmInstrVarLocal('tee', WasmId('$@tmp_i32')))
+                instrs.append(WasmInstrVarLocal('get', WasmId('$@tmp_i32')))
+                instrs.append(WasmInstrConst('i32', init + offset_counter * i))
+                instrs.append(WasmInstrNumBinOp('i32', 'add'))
+                instrs += compileExp(elemInit[i], cfg)
+                instrs.append(WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'store'))
 
-            instrs : list[WasmInstr] = []
-            for elem in elemInit:
-                instrs += compileExp(elem, cfg)
+            init_array += instrs
+            #pprint(init_array)
+            return init_array
         # translate Subscript
         case Subscript(arrExp, indexExp):
-            raise Exception(f'Subscript not implemented')
+            # arrayOffsetInstrs returns instructions that leave the address of a certain element on top of stack
+            instrs = arrayOffsetInstrs(arrExp, indexExp, cfg)
+            instrs.append(WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'load'))
+            return instrs
         # raise exception if no match
         case _:
             raise Exception(f'No match for expression {exp}')
@@ -218,29 +287,68 @@ def compileStmts(stmts: list[stmt], cfg: CompilerConfig) -> list[WasmInstr]:
                 )
             # create case for SubscriptAssign(leftExp, indexExp, rightExp)
             case SubscriptAssign(leftExp, indexExp, rightExp):
-                instrs += compileExp(leftExp, cfg)
-                instrs += compileExp(indexExp, cfg)
+                # put instructions for the right-hand side, followed by a i64.store or i32.store after these instructions
                 instrs += compileExp(rightExp, cfg)
+                instrs += arrayOffsetInstrs(leftExp, indexExp, cfg)
+                instrs.append(WasmInstrMem('i64' if tyInArr(leftExp) == Int() else 'i32', 'store'))
 
     return instrs
 
 # returns instructions that places the memory offset for a certain array element on top of the stack
-def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp) -> list[WasmInstr]:
-    return []
+def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig) -> list[WasmInstr]:
+    # create bounds check
+    # ====================================================================================
+    # THIS CODE SEGMENT CHECKS THE LENGTH
+
+    # check in Wasm if the length is greater than the max array size
+    # instrs = [WasmInstrConst('i64', 9999999999)]
+    greater : list[WasmInstr] = compileExp(indexExp, cfg)
+    greater += arrayLenInstrs()
+    greater.append(WasmInstrIntRelOp('i64', 'gt_s'))
+    # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
+    greater.append(WasmInstrIf(None, Errors.outputError(Errors.arrayIndexOutOfBounds) + [WasmInstrTrap()], []))
+    #pprint(greater)
+    # check in Wasm if the length is smaller than 0
+    smaller = compileExp(indexExp, cfg)
+    smaller.append(WasmInstrConst('i64', 0))
+    smaller.append(WasmInstrIntRelOp('i64', 'lt_s'))
+    # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
+    smaller.append(WasmInstrIf(None, Errors.outputError(Errors.arrayIndexOutOfBounds) + [WasmInstrTrap()], []))
+    #pprint(smaller)
+    # append smaller to greater
+    greater += smaller
+
+    # ====================================================================================
+
+    # get the address of the array
+    instrs = compileExp(arrayExp, cfg)
+    # get the index
+    instrs += compileExp(indexExp, cfg)
+    # wrap the index to i32
+    instrs.append(WasmInstrConvOp('i32.wrap_i64'))
+    # get the size of the element
+    instrs.append(WasmInstrConst('i32', forTyRetByte(tyInArr(arrayExp))))
+    # multiply the index with the size of the element
+    instrs.append(WasmInstrNumBinOp('i32', 'mul'))
+    # add the offset of the first element
+    instrs.append(WasmInstrConst('i32', 4))
+    instrs.append(WasmInstrNumBinOp('i32', 'add'))
+    # add the address of the array
+    instrs.append(WasmInstrNumBinOp('i32', 'add'))
+
+    return instrs
+
 
 # generates code that expects the array address on top of stack and puts the length on top of stack
 # searches the 28 bits of the length in the memory
 def arrayLenInstrs() -> list[WasmInstr]:
-    return []
-
-def forTyRetByte(ty: ty) -> int:
-    match ty:
-        case Int():
-            return 8
-        case Bool():
-            return 4
-        case Array(_):
-            return 4
+    instrs : list[WasmInstr] = [
+        WasmInstrMem('i32', 'load'),
+        WasmInstrConst('i32', 4),
+        WasmInstrNumBinOp('i32', 'shr_u'),
+        WasmInstrConvOp('i64.extend_i32_u')
+    ]
+    return instrs
 
 # generates code to initialize an array without initializing the elements
 # n * [0] :: the n is the lenExp
@@ -256,14 +364,14 @@ def compileInitArray(lenExp: atomExp, elemTy: ty, cfg: CompilerConfig) -> list[W
     greater.append(WasmInstrIntRelOp('i64', 'gt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
     greater.append(WasmInstrIf(None, Errors.outputError(Errors.arraySize) + [WasmInstrTrap()], []))
-    pprint(greater)
+    #pprint(greater)
     # check in Wasm if the length is smaller than 0
     smaller = compileExp(lenExp, cfg)
     smaller.append(WasmInstrConst('i64', 0))
     smaller.append(WasmInstrIntRelOp('i64', 'lt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
     smaller.append(WasmInstrIf(None, Errors.outputError(Errors.arraySize) + [WasmInstrTrap()], []))
-    pprint(smaller)
+    #pprint(smaller)
     # append smaller to greater
     greater += smaller
 
@@ -278,7 +386,7 @@ def compileInitArray(lenExp: atomExp, elemTy: ty, cfg: CompilerConfig) -> list[W
     header.append(WasmInstrConst('i32', 1))
     header.append(WasmInstrNumBinOp('i32', 'xor'))
     header.append(WasmInstrMem('i32', 'store'))
-    pprint(header)
+    #pprint(header)
 
     # append header to greater
     greater += header
@@ -300,7 +408,7 @@ def compileInitArray(lenExp: atomExp, elemTy: ty, cfg: CompilerConfig) -> list[W
     move.append(WasmInstrNumBinOp('i32', 'add'))
     move.append(WasmInstrVarGlobal('set', WasmId('$@free_ptr')))
 
-    pprint(move)
+    #pprint(move)
 
     # append move to greater
     greater += move
@@ -316,16 +424,22 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
     atomic_stmts = array_transform.transStmts(m.stmts, ctx)
 
     instr = compileStmts(atomic_stmts, cfg)
-    print(instr)
+    #print(instr)
     #print(vars)
     # return a wasm module that simply print(1)
     #[WasmInstrConst(ty='i64', val=4), WasmInstrVarLocal(op='set', id=WasmId(id='$x')), WasmInstrVarLocal(op='get', id=WasmId(id='$x')), WasmInstrCall(id=WasmId(id='$print'))]
     locals : list[tuple[WasmId, WasmValtype]] = []
+    # add to locals the temporary variables
+    locals.append((WasmId('$@tmp_i32'), 'i32'))
     # extract the locals and ma the type to the wasm type
     for var, info in vars.items():
         if info.ty == Int():
             locals.append((WasmId("$" + var.name), 'i64'))
         elif info.ty == Bool():
+            locals.append((WasmId("$" + var.name), 'i32'))
+        elif info.ty == Array(Int()):
+            locals.append((WasmId("$" + var.name), 'i32'))
+        elif info.ty == Array(Bool()):
             locals.append((WasmId("$" + var.name), 'i32'))
         else:
             raise Exception(f'Invalid type {info.ty}')
