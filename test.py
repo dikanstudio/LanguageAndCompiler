@@ -1,2 +1,1 @@
-n = input_int()
-m = n * [0]
+arr = [input_int()][input_int()]

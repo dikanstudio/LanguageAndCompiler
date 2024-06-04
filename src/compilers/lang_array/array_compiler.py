@@ -21,8 +21,14 @@ def tyOfExp(exp: exp) -> ty:
 
 def tyInArr(exp: exp) -> ty:
     match exp.ty:
-        case NotVoid(Array(t)):
-            return t
+        case NotVoid(t):
+            match t:
+                case Array(ty):
+                    return ty
+                case Int():
+                    return Int()
+                case Bool():
+                    return Bool()
         case _:
             raise Exception(f'Invalid type {exp.ty} in array')
 
@@ -188,9 +194,9 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                             WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
                             WasmInstrVarGlobal('get', WasmId('$@free_ptr')),
                             WasmInstrIntRelOp('i32', 'lt_u'),
-                            WasmInstrIf(None, [WasmInstrBranch(WasmId('$loop_exit'), False)], []),
+                            WasmInstrIf(None, [], [WasmInstrBranch(WasmId('$loop_exit'), False)]),
                             WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
-                            compileExp(elemInit, cfg),
+                            compileExp(elemInit, cfg)[0],
                             WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'store'),
                             WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
                             # size of the element
@@ -237,6 +243,8 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
         case Subscript(arrExp, indexExp):
             # arrayOffsetInstrs returns instructions that leave the address of a certain element on top of stack
             instrs = arrayOffsetInstrs(arrExp, indexExp, cfg)
+            # get the index
+            #instrs += compileExp(indexExp, cfg)
             instrs.append(WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'load'))
             return instrs
         # raise exception if no match
@@ -302,7 +310,8 @@ def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig)
 
     # check in Wasm if the length is greater than the max array size
     # instrs = [WasmInstrConst('i64', 9999999999)]
-    greater : list[WasmInstr] = compileExp(indexExp, cfg)
+    # greater : list[WasmInstr] = compileExp(indexExp, cfg)
+    greater : list[WasmInstr] = []
     greater += arrayLenInstrs()
     greater.append(WasmInstrIntRelOp('i64', 'gt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
@@ -327,7 +336,7 @@ def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig)
     # wrap the index to i32
     instrs.append(WasmInstrConvOp('i32.wrap_i64'))
     # get the size of the element
-    instrs.append(WasmInstrConst('i32', forTyRetByte(tyInArr(arrayExp))))
+    instrs.append(WasmInstrConst('i32', forTyRetByte(arrayExp.ty)))
     # multiply the index with the size of the element
     instrs.append(WasmInstrNumBinOp('i32', 'mul'))
     # add the offset of the first element
@@ -336,7 +345,9 @@ def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig)
     # add the address of the array
     instrs.append(WasmInstrNumBinOp('i32', 'add'))
 
-    return instrs
+    greater += instrs
+
+    return greater
 
 
 # generates code that expects the array address on top of stack and puts the length on top of stack
@@ -431,6 +442,17 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
     locals : list[tuple[WasmId, WasmValtype]] = []
     # add to locals the temporary variables
     locals.append((WasmId('$@tmp_i32'), 'i32'))
+    # for assign in atomic_stmts get IDENT.NAME and create locals
+    for assign in atomic_stmts:
+        if isinstance(assign, Assign):
+            # only if name starts with tmp
+            if assign.var.name.startswith('tmp'):
+                # if ArrayInitStatic or ArrayInitDyn
+                if isinstance(assign.right, ArrayInitStatic) or isinstance(assign.right, ArrayInitDyn) or isinstance(assign.right, SubscriptAssign) or isinstance(assign.right, Subscript):
+                    locals.append((WasmId('$' + assign.var.name), 'i32'))
+                else:
+                    locals.append((WasmId('$' + assign.var.name), 'i64'))
+
     # extract the locals and ma the type to the wasm type
     for var, info in vars.items():
         if info.ty == Int():
@@ -440,6 +462,10 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
         elif info.ty == Array(Int()):
             locals.append((WasmId("$" + var.name), 'i32'))
         elif info.ty == Array(Bool()):
+            locals.append((WasmId("$" + var.name), 'i32'))
+        elif info.ty == Array(Array(Int())):
+            locals.append((WasmId("$" + var.name), 'i32'))
+        elif info.ty == Array(Array(Bool())):
             locals.append((WasmId("$" + var.name), 'i32'))
         else:
             raise Exception(f'Invalid type {info.ty}')
