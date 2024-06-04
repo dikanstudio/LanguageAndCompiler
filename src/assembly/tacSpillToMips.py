@@ -11,8 +11,8 @@ import assembly.mips_ast as mips
 from typing import *
 from assembly.common import *
 from assembly.mipsHelper import *
-from compilers.assembly.tacSpillAssignToMips import assignToMips
 from common.compilerSupport import *
+import common.utils as utils
 
 class StackLocs:
     def __init__(self):
@@ -34,7 +34,8 @@ printNewlineInstrs: list[mips.instr] = [
 def toMips(i: tacSpill.instr, locs: StackLocs) -> list[mips.instr]:
     match i:
         case tacSpill.Assign():
-            return assignToMips(i)
+            m = utils.importModuleNotInStudent('compilers.assembly.tacSpillAssignToMips')
+            return m.assignToMips(i)
         case tacSpill.Call(x, f, args):
             prints = ['$print_i64', '$print_i32']
             inputs = ['$input_i64']

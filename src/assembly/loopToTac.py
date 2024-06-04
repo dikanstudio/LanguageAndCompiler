@@ -11,9 +11,10 @@ import common.log as log
 import common.genericCompiler as genCompiler
 import assembly.wasmToTac as wasmToTac
 import common.sexp as sexp
+import common.utils as utils
 
 def loopToTac(args: genCompiler.Args) -> list[tac.instr]:
-    import compilers.lang_loop.loop_compiler as c
+    c = utils.importModuleNotInStudent('compilers.lang_loop.loop_compiler')
     import lang_loop.loop_ast as ast
     log.debug(f'Generating TAC from {args.input}')
     wasmMod = genCompiler.compileMain(args, c.compileModule, ast)
