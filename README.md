@@ -251,7 +251,7 @@ wasm-micro-runtime.
 
 ```
 $ cd wasm-support
-$ make native WAMR_ROOT_DIR=/PATH_TO_WARM_CHECKOUT/wasm-micro-runtime
+$ make native WAMR_ROOT_DIR=/PATH_TO_WARM_CHECKOUT
 ```
 
 ## Install pyright
