@@ -1,1 +1,2 @@
-arr = [input_int()][input_int()]
+arr = [0]
+x = arr[1]

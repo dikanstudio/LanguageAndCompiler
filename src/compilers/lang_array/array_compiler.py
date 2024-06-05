@@ -312,6 +312,7 @@ def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig)
     # instrs = [WasmInstrConst('i64', 9999999999)]
     # greater : list[WasmInstr] = compileExp(indexExp, cfg)
     greater : list[WasmInstr] = []
+    greater += compileExp(arrayExp, cfg)
     greater += arrayLenInstrs()
     greater.append(WasmInstrIntRelOp('i64', 'gt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
