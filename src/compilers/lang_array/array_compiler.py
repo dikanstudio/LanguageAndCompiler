@@ -5,7 +5,7 @@ import lang_array.array_tychecker as array_tychecker
 import lang_array.array_transform as array_transform
 from lang_array.array_compilerSupport import *
 from common.compilerSupport import *
-import common.utils as utils
+#import common.utils as utils
 from pprint import pprint
 
 def tyOfExp(exp: exp) -> ty:
@@ -31,6 +31,18 @@ def tyInArr(exp: exp) -> ty:
                     return Bool()
         case _:
             raise Exception(f'Invalid type {exp.ty} in array')
+        
+def NameTy(name: Name) -> ty:
+    # type checker stores the type of the expression in the ty field assume that this attribute is not none when running the compiler
+    match name.ty:
+        case Int():
+            return Int()
+        case Bool():
+            return Bool()
+        case Array(ty):
+            return Array(ty)
+        case _:
+            raise Exception(f'Invalid type {name.ty} in array')
 
 def forTyRetByte(ty: ty) -> int:
     match ty:
@@ -40,6 +52,28 @@ def forTyRetByte(ty: ty) -> int:
             return 4
         case Array(_):
             return 4
+        
+# def checkInside with optional ty
+def checkInside(ty: optional[ty]) -> ty:
+    match ty:
+        case None:
+            raise Exception(f'No type for expression')
+        case Int():
+            return Int()
+        case Bool():
+            return Bool()
+        case Array(ty):
+            return ty
+        
+# compile AtomExp to WasmInstr
+def compileAtomExp(a: atomExp, cfg: CompilerConfig) -> list[WasmInstr]:
+    match a:
+        case IntConst(v):
+            return [WasmInstrConst('i64', v)]
+        case BoolConst(v):
+            return [WasmInstrConst('i32', 1 if v else 0)]
+        case Name(name):
+            return [WasmInstrVarLocal('get', WasmId("$" + name.name))]
 
 def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
     # debug info - analyze the expression
@@ -47,11 +81,11 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
     # debug info
     match exp:
         # traslate IntConst to WasmInstrConst
-        case IntConst(v):
-            return [WasmInstrConst('i64', v)]
+        #case IntConst(v):
+            #return [WasmInstrConst('i64', v)]
         # traslate Name to WasmInstrVarLocal
-        case Name(name):
-            return [WasmInstrVarLocal('get', WasmId("$" + name.name))]
+        #case Name(name):
+            #return [WasmInstrVarLocal('get', WasmId("$" + name.name))]
         # translate Call to WasmInstrCall (and compile the arguments)
         case Call(name, args):
             instrs : list[WasmInstr] = []
@@ -154,8 +188,8 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                 instrs.append(WasmInstrIntRelOp('i32', 'ne'))
             return instrs
         # translate BoolConst to WasmInstrConst
-        case BoolConst(v):
-            return [WasmInstrConst('i32', 1 if v else 0)]
+        #case BoolConst(v):
+            #return [WasmInstrConst('i32', 1 if v else 0)]
         # translate BinOp to WasmInstrIf
         case BinOp(left, And(), right):
             instrs = compileExp(left, cfg)
@@ -206,7 +240,7 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                             WasmInstrIntRelOp('i32', 'lt_u'),
                             WasmInstrIf(None, [], [WasmInstrBranch(WasmId('$loop_exit'), False)]),
                             WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
-                            compileExp(elemInit, cfg)[0],
+                            compileAtomExp(elemInit, cfg)[0],
                             WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'store'),
                             WasmInstrVarLocal('get', WasmId('$@tmp_i32')),
                             # size of the element
@@ -232,7 +266,7 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
             instrs.append(WasmInstrConst('i32', 4))
             instrs.append(WasmInstrNumBinOp('i32', 'add'))
             # add first element to the array
-            instrs += compileExp(elemInit[0], cfg)
+            instrs += compileAtomExp(elemInit[0], cfg)
             instrs.append(WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'store'))
             # if type int sotre i64 else i32
             init = 4
@@ -243,7 +277,7 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                 instrs.append(WasmInstrVarLocal('get', WasmId('$@tmp_i32')))
                 instrs.append(WasmInstrConst('i32', init + offset_counter * i))
                 instrs.append(WasmInstrNumBinOp('i32', 'add'))
-                instrs += compileExp(elemInit[i], cfg)
+                instrs += compileAtomExp(elemInit[i], cfg)
                 instrs.append(WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'store'))
 
             init_array += instrs
@@ -322,15 +356,19 @@ def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig)
     # instrs = [WasmInstrConst('i64', 9999999999)]
     # greater : list[WasmInstr] = compileExp(indexExp, cfg)
     greater : list[WasmInstr] = []
-    greater += compileExp(indexExp, cfg)
-    greater += compileExp(arrayExp, cfg)
+    greater += compileAtomExp(indexExp, cfg)
+    # add 1 to the index to check if the index is greater than the length
+    greater.append(WasmInstrConst('i64', 1))
+    # perform addition of the index and 1
+    greater.append(WasmInstrNumBinOp('i64', 'add'))
+    greater += compileAtomExp(arrayExp, cfg)
     greater += arrayLenInstrs()
     greater.append(WasmInstrIntRelOp('i64', 'gt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
     greater.append(WasmInstrIf(None, Errors.outputError(Errors.arrayIndexOutOfBounds) + [WasmInstrTrap()], []))
     #pprint(greater)
     # check in Wasm if the length is smaller than 0
-    smaller = compileExp(indexExp, cfg)
+    smaller = compileAtomExp(indexExp, cfg)
     smaller.append(WasmInstrConst('i64', 0))
     smaller.append(WasmInstrIntRelOp('i64', 'lt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
@@ -342,13 +380,16 @@ def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig)
     # ====================================================================================
 
     # get the address of the array
-    instrs = compileExp(arrayExp, cfg)
+    instrs = compileAtomExp(arrayExp, cfg)
     # get the index
-    instrs += compileExp(indexExp, cfg)
+    instrs += compileAtomExp(indexExp, cfg)
     # wrap the index to i32
     instrs.append(WasmInstrConvOp('i32.wrap_i64'))
     # get the size of the element
-    instrs.append(WasmInstrConst('i32', forTyRetByte(arrayExp.ty.elemTy)))
+    # retrieve the inner element type of the array
+    myty = arrayExp.ty
+    inside = checkInside(myty)
+    instrs.append(WasmInstrConst('i32', forTyRetByte(inside)))
     # multiply the index with the size of the element
     instrs.append(WasmInstrNumBinOp('i32', 'mul'))
     # add the offset of the first element
@@ -382,14 +423,14 @@ def compileInitArray(lenExp: atomExp, elemTy: ty, cfg: CompilerConfig) -> list[W
 
     # check in Wasm if the length is greater than the max array size
     # instrs = [WasmInstrConst('i64', 9999999999)]
-    greater = compileExp(lenExp, cfg)
+    greater = compileAtomExp(lenExp, cfg)
     greater.append(WasmInstrConst('i64', int(cfg.maxArraySize / forTyRetByte(elemTy))))
     greater.append(WasmInstrIntRelOp('i64', 'gt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
     greater.append(WasmInstrIf(None, Errors.outputError(Errors.arraySize) + [WasmInstrTrap()], []))
     #pprint(greater)
     # check in Wasm if the length is smaller than 0
-    smaller = compileExp(lenExp, cfg)
+    smaller = compileAtomExp(lenExp, cfg)
     smaller.append(WasmInstrConst('i64', 0))
     smaller.append(WasmInstrIntRelOp('i64', 'lt_s'))
     # create a block with the if statement if (i32.const 0) (i32.const 14) (call $print_err) unreachable else end
@@ -402,7 +443,7 @@ def compileInitArray(lenExp: atomExp, elemTy: ty, cfg: CompilerConfig) -> list[W
     # THIS CODE CREATES THE HEADER
 
     header = [WasmInstrVarGlobal('get', WasmId('$@free_ptr'))]
-    header += compileExp(lenExp, cfg)
+    header += compileAtomExp(lenExp, cfg)
     header.append(WasmInstrConvOp('i32.wrap_i64'))
     header.append(WasmInstrConst('i32', 4))
     header.append(WasmInstrNumBinOp('i32', 'shl'))
@@ -418,7 +459,7 @@ def compileInitArray(lenExp: atomExp, elemTy: ty, cfg: CompilerConfig) -> list[W
     # THIS CODE MOVES FREE_PTR AND RETURNS THE ARRAY ADDRESS
 
     move = [WasmInstrVarGlobal('get', WasmId('$@free_ptr'))]
-    move += compileExp(lenExp, cfg)
+    move += compileAtomExp(lenExp, cfg)
     move.append(WasmInstrConvOp('i32.wrap_i64'))
     if forTyRetByte(elemTy) == 8:
         move.append(WasmInstrConst('i32', 8))
