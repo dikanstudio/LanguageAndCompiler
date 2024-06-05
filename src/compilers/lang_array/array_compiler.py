@@ -61,6 +61,8 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
             if name.name == 'print':
                 if exp.ty == Void() and tyOfExp(args[0]) == Int():
                     instrs.append(WasmInstrCall(WasmId('$print_i64')))
+                elif exp.ty == Void() and tyOfExp(args[0]) == Bool():
+                    instrs.append(WasmInstrCall(WasmId('$print_bool')))
                 else:
                     instrs.append(WasmInstrCall(WasmId('$print_i32')))
             elif name.name == 'input_int':
@@ -478,24 +480,13 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
 
     # extract the locals and ma the type to the wasm type
     for var, info in vars.items():
-        if info.ty == Int():
-            locals.append((WasmId("$" + var.name), 'i64'))
-        elif info.ty == Bool():
-            locals.append((WasmId("$" + var.name), 'i32'))
-        elif info.ty == Array(Int()):
-            locals.append((WasmId("$" + var.name), 'i32'))
-        elif info.ty == Array(Bool()):
-            locals.append((WasmId("$" + var.name), 'i32'))
-        elif info.ty == Array(Array(Int())):
-            locals.append((WasmId("$" + var.name), 'i32'))
-        elif info.ty == Array(Array(Bool())):
-            locals.append((WasmId("$" + var.name), 'i32'))
-        elif info.ty == Array(Array(Array(Int()))):
-            locals.append((WasmId("$" + var.name), 'i32'))
-        elif info.ty == Array(Array(Array(Bool()))):
-            locals.append((WasmId("$" + var.name), 'i32'))
-        else:
-            raise Exception(f'Invalid type {info.ty}')
+        match info.ty:
+            case Int():
+                locals.append((WasmId("$" + var.name), 'i64'))
+            case Bool():
+                locals.append((WasmId("$" + var.name), 'i32'))
+            case Array(_):
+                locals.append((WasmId("$" + var.name), 'i32'))
 
     #print(locals)
 
