@@ -245,7 +245,7 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
             instrs = arrayOffsetInstrs(arrExp, indexExp, cfg)
             # get the index
             #instrs += compileExp(indexExp, cfg)
-            instrs.append(WasmInstrMem('i64' if tyInArr(exp) == Int() else 'i32', 'load'))
+            instrs.append(WasmInstrMem('i64' if tyOfExp(exp) == Int() else 'i32', 'load'))
             return instrs
         # raise exception if no match
         case _:
@@ -298,7 +298,7 @@ def compileStmts(stmts: list[stmt], cfg: CompilerConfig) -> list[WasmInstr]:
                 # put instructions for the right-hand side, followed by a i64.store or i32.store after these instructions
                 instrs += compileExp(rightExp, cfg)
                 instrs += arrayOffsetInstrs(leftExp, indexExp, cfg)
-                instrs.append(WasmInstrMem('i64' if tyInArr(leftExp) == Int() else 'i32', 'store'))
+                instrs.append(WasmInstrMem('i64' if tyOfExp(leftExp) == Int() else 'i32', 'store'))
 
     return instrs
 
