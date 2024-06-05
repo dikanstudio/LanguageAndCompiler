@@ -68,6 +68,8 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                     instrs.append(WasmInstrCall(WasmId('$input_i64')))
                 else:
                     instrs.append(WasmInstrCall(WasmId('$input_i32')))
+            elif name.name == 'len':
+                instrs += arrayLenInstrs()
             else:
                 raise Exception(f'Invalid function call of {name.name} with {len(args)} arguments')
             return instrs
@@ -161,6 +163,12 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
         case BinOp(left, Or(), right):
             instrs = compileExp(left, cfg)
             instrs.append(WasmInstrIf('i32', [WasmInstrConst('i32', 1)], compileExp(right, cfg)))
+            return instrs
+        # create BinOp for Is operation for example to compare to arrays if they are the same
+        case BinOp(left, Is(), right):
+            instrs = compileExp(left, cfg)
+            instrs += compileExp(right, cfg)
+            instrs.append(WasmInstrIntRelOp('i32', 'eq'))
             return instrs
         # translate AtomExp which is either IntConst, BoolConst or Name
         case AtomExp(a):
@@ -296,9 +304,9 @@ def compileStmts(stmts: list[stmt], cfg: CompilerConfig) -> list[WasmInstr]:
             # create case for SubscriptAssign(leftExp, indexExp, rightExp)
             case SubscriptAssign(leftExp, indexExp, rightExp):
                 # put instructions for the right-hand side, followed by a i64.store or i32.store after these instructions
-                instrs += compileExp(rightExp, cfg)
                 instrs += arrayOffsetInstrs(leftExp, indexExp, cfg)
-                instrs.append(WasmInstrMem('i64' if tyOfExp(leftExp) == Int() else 'i32', 'store'))
+                instrs += compileExp(rightExp, cfg)
+                instrs.append(WasmInstrMem('i64' if tyOfExp(rightExp) == Int() else 'i32', 'store'))
 
     return instrs
 
@@ -338,7 +346,7 @@ def arrayOffsetInstrs(arrayExp: atomExp, indexExp: atomExp, cfg: CompilerConfig)
     # wrap the index to i32
     instrs.append(WasmInstrConvOp('i32.wrap_i64'))
     # get the size of the element
-    instrs.append(WasmInstrConst('i32', forTyRetByte(arrayExp.ty)))
+    instrs.append(WasmInstrConst('i32', forTyRetByte(arrayExp.ty.elemTy)))
     # multiply the index with the size of the element
     instrs.append(WasmInstrNumBinOp('i32', 'mul'))
     # add the offset of the first element
@@ -427,6 +435,27 @@ def compileInitArray(lenExp: atomExp, elemTy: ty, cfg: CompilerConfig) -> list[W
     greater += move
     return greater
     
+# create function that searches the stmt recursively for "tmp.." vars and creates locals for them
+def createLocals(stmts: list[stmt]) -> list[tuple[WasmId, WasmValtype]]:
+    locals : list[tuple[WasmId, WasmValtype]] = []
+    for stmt in stmts:
+        match stmt:
+            case Assign(var, _):
+                if var.name.startswith('tmp'):
+                    # if ArrayInitStatic or ArrayInitDyn or SubscriptAssign or Subscript
+                    if isinstance(stmt.right, ArrayInitStatic) or isinstance(stmt.right, ArrayInitDyn) or isinstance(stmt.right, SubscriptAssign) or isinstance(stmt.right, Subscript):
+                        locals.append((WasmId('$' + var.name), 'i32'))
+                    else:
+                        locals.append((WasmId('$' + var.name), 'i64'))
+            case IfStmt(_, thenBody, elseBody):
+                locals += createLocals(thenBody)
+                locals += createLocals(elseBody)
+            case WhileStmt(_, body):
+                locals += createLocals(body)
+            case _:
+                pass
+    return locals
+
 
 def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
     # type check the module
@@ -445,15 +474,7 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
     # add to locals the temporary variables
     locals.append((WasmId('$@tmp_i32'), 'i32'))
     # for assign in atomic_stmts get IDENT.NAME and create locals
-    for assign in atomic_stmts:
-        if isinstance(assign, Assign):
-            # only if name starts with tmp
-            if assign.var.name.startswith('tmp'):
-                # if ArrayInitStatic or ArrayInitDyn
-                if isinstance(assign.right, ArrayInitStatic) or isinstance(assign.right, ArrayInitDyn) or isinstance(assign.right, SubscriptAssign) or isinstance(assign.right, Subscript):
-                    locals.append((WasmId('$' + assign.var.name), 'i32'))
-                else:
-                    locals.append((WasmId('$' + assign.var.name), 'i64'))
+    locals += createLocals(atomic_stmts)
 
     # extract the locals and ma the type to the wasm type
     for var, info in vars.items():
@@ -468,6 +489,10 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
         elif info.ty == Array(Array(Int())):
             locals.append((WasmId("$" + var.name), 'i32'))
         elif info.ty == Array(Array(Bool())):
+            locals.append((WasmId("$" + var.name), 'i32'))
+        elif info.ty == Array(Array(Array(Int()))):
+            locals.append((WasmId("$" + var.name), 'i32'))
+        elif info.ty == Array(Array(Array(Bool()))):
             locals.append((WasmId("$" + var.name), 'i32'))
         else:
             raise Exception(f'Invalid type {info.ty}')
