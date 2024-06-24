@@ -10,7 +10,26 @@
             "request": "launch",
             "program": "src/main.py",
             "console": "integratedTerminal",
-            "args": "--lang array compile test.py"
+            "args": "--lang fun compile test.py"
+        },
+        {
+            "name": "Python: Test liveness",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/.venv/bin/pytest",
+            "args": [
+                "test/test_liveness.py::test_interfGraph3",
+                "--strict-config",
+                "--strict-markers",
+                "--capture=no",
+                "--tb=short"
+            ],
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src:${env:PYTHONPATH}"
+            },
+            "cwd": "${workspaceFolder}",
+            "justMyCode": false
         }
     ]
 }
