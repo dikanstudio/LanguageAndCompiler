@@ -76,9 +76,23 @@ def compileAtomExp(a: atomExp, cfg: CompilerConfig) -> list[WasmInstr]:
         case BoolConst(v):
             return [WasmInstrConst('i32', 1 if v else 0)]
         case VarName(var, _):
-            return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
+            # check ty of a if Fun use call
+            if isinstance(a.ty, Fun):
+                identifier = a.ty.params
+                temp : list[WasmValtype] = []
+                for i in identifier:
+                    if i == Int():
+                        temp.append('i64')
+                    else:
+                        temp.append('i32')
+                if a.ty.result == NotVoid(Int()):
+                    return [WasmInstrCallIndirect(temp, 'i64')]
+                else:
+                    return [WasmInstrCallIndirect(temp, 'i32')]
+            else:
+                return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
         case FunName(fun, _):
-            return [WasmInstrVarLocal('get', WasmId("$" + fun.name))]
+            return [WasmInstrCall(WasmId("$" + fun.name))]
 
 def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
     # debug info - analyze the expression
@@ -99,6 +113,8 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
             # CallTargetBuiltin | CallTargetDirect | CallTargetIndirect
             match fun:
                 case CallTargetBuiltin(var):
+                    instrs.append(WasmInstrCall(WasmId('$' + var.name)))
+                case CallTargetDirect(var):
                     match var.name:
                         # map print to print_i64 and input_int to input_i64
                         case 'print':
@@ -116,9 +132,7 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                         case 'len':
                             instrs += arrayLenInstrs()
                         case _:
-                            raise Exception(f'Invalid function call of {var.name} with {len(args)} arguments')
-                case CallTargetDirect(var):
-                    instrs.append(WasmInstrCall(WasmId('$' + var.name)))
+                            instrs.append(WasmInstrCall(WasmId('$' + var.name)))
                 case CallTargetIndirect(name, params, result):
                     raise Exception(f'Indirect call not implemented')
             return instrs
@@ -227,9 +241,23 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                 case BoolConst(v):
                     return [WasmInstrConst('i32', 1 if v else 0)]
                 case VarName(var, _):
-                    return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
+                    # check ty of a if Fun use call
+                    if isinstance(a.ty, Fun):
+                        identifier = a.ty.params
+                        temp : list[WasmValtype] = []
+                        for i in identifier:
+                            if i == Int():
+                                temp.append('i64')
+                            else:
+                                temp.append('i32')
+                        if a.ty.result == NotVoid(Int()):
+                            return [WasmInstrCallIndirect(temp, 'i64')]
+                        else:
+                            return [WasmInstrCallIndirect(temp, 'i32')]
+                    else:
+                        return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
                 case FunName(fun, _):
-                    return [WasmInstrVarLocal('get', WasmId("$" + fun.name))]
+                    return [WasmInstrCall(WasmId("$" + fun.name))]
         # translate ArrayInitDyn
         case ArrayInitDyn(lenExp, elemInit):
             # this leaves the array address on top of the stack
@@ -526,26 +554,28 @@ def createLocals(stmts: list[stmt]) -> list[tuple[WasmId, WasmValtype]]:
                                 locals.append((WasmId('$' + var.name), 'i32'))
                         else:
                             raise Exception(f'Invalid type {stmt.right}')
+                    elif isinstance(right, Call):
+                        locals.append((WasmId('$' + var.name), 'i64'))
+                    elif isinstance(right, FunName):
+                        locals.append((WasmId('$' + var.name), 'i64'))
+                    elif isinstance(right, Ident):
+                        locals.append((WasmId('$' + var.name), 'i64'))
             case IfStmt(_, thenBody, elseBody):
                 locals += createLocals(thenBody)
                 locals += createLocals(elseBody)
             case WhileStmt(_, body):
-                locals += createLocals(body)
+                for stmt in body:
+                    if isinstance(stmt, Assign):
+                        if stmt.var.name.startswith('tmp'):
+                            locals.append((WasmId('$' + stmt.var.name), 'i64'))
+                    else:
+                        pass
+
             case StmtExp(exp):
+                print("StmtExp not implemented in createLocals")
                 pass
-                # if isinstance(exp, Call):
-                #     locals.append((WasmId('$@tmp_i32'), 'i32'))
-                # elif isinstance(exp, AtomExp):
-                #     if isinstance(exp.e, IntConst):
-                #         locals.append((WasmId('$@tmp_i64'), 'i64'))
-                #     elif isinstance(exp.e, BoolConst):
-                #         locals.append((WasmId('$@tmp_i32'), 'i32'))
-                #     elif isinstance(exp.e, VarName):
-                #         locals.append((WasmId('$@tmp_i32'), 'i32'))
-                #     elif isinstance(exp, FunName):
-                #         locals.append((WasmId('$@tmp_i32'), 'i32'))
             case SubscriptAssign(_, _, _):
-                pass
+                raise Exception("Not implemented SubscriptAssign")
             case Return(exp):
                 if exp is not None:
                     locals += createLocals([StmtExp(exp)])
@@ -628,6 +658,11 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
     locals += createLocals(atomic_stmts)
     # add local variable "@tmp_i32" to locals
     locals.append((WasmId('$@tmp_i32'), 'i32'))
+    # check for each func in funcs if the locals are in the locals list
+    for f in funcs:
+        for local in f.locals:
+            if local not in locals:
+                locals.append(local)
 
     wasmIds : list[WasmId] = []
 
