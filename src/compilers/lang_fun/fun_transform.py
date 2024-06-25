@@ -6,24 +6,31 @@ import common.utils as utils
 type Temporaries = list[tuple[atom.Ident, atom.exp]]
 
 class Ctx:
-    """
-    Context for getting fresh variable names.
-    """
     def __init__(self):
         self.freshVars: dict[ident, ty] = {}
     def newVar(self, t: ty) -> ident:
-        """
-        Get a fresh variabler of the given type.
-        """
         nameId = len(self.freshVars)
         x = Ident(f'tmp_{nameId}')
         self.freshVars[x] = t
         return x
 
+def assertResultTy(t: optional[resultTy]) -> resultTy:
+    match t:
+        case None:
+            utils.abort(f'Type still None after type checking')
+        case _:
+            return t
+
+def assertTy(t: optional[resultTy]) -> ty:
+    match t:
+        case None:
+            utils.abort(f'Type still None after type checking')
+        case Void():
+            utils.abort(f'Unexpected type void')
+        case NotVoid(x):
+            return x
+
 def transExpAtomic(e: exp, ctx: Ctx) -> tuple[atom.atomExp, Temporaries]:
-    """
-    Translates e to an atomic expression. Essentially a shortcut for transExp(e, True, ctx).
-    """
     (res, ts) = transExp(e, True, ctx)
     match res:
         case atom.AtomExp(a):
@@ -31,114 +38,81 @@ def transExpAtomic(e: exp, ctx: Ctx) -> tuple[atom.atomExp, Temporaries]:
         case _:
             utils.abort(f'transExp with needAtom=True failed to return an atomic expression: {e}')
 
-def assertExpNotVoid(e: exp | atom.exp) -> ty:
-    """
-    Asserts that e is an expression of a non-void type.
-    """
-    match e.ty:
-        case None:
-            raise ValueError(f'type still None after type-checking. Expression: {e}')
-        case Void():
-            raise ValueError(f'type of {e} is Void after type-checking.')
-        case NotVoid(t):
-            return t
-
 def atomic(needAtomic: bool, e: atom.exp, tmps: Temporaries, ctx: Ctx) -> tuple[atom.exp, Temporaries]:
-    """
-    Converts e to an atomic expression if needAtomic is True.
-    """
     if needAtomic:
-        t = assertExpNotVoid(e)
+        t = assertTy(e.ty)
         tmp = ctx.newVar(t)
-        return (atom.AtomExp(atom.VarName(tmp, t), e.ty), tmps + [(tmp, e)])
+        return (atom.AtomExp(atom.VarName(tmp, t), NotVoid(t)), tmps + [(tmp, e)])
     else:
         return (e, tmps)
-    
-def ensure_result_ty(t: optional[resultTy]) -> resultTy:
-    """
-    Ensures that t is not None, providing a default resultTy if it is.
-    """
-    if t is None:
-        return Void()
-    return t
+
+def callTarget(e: exp, ctx: Ctx) -> tuple[atom.callTarget, Temporaries]:
+    match e.ty:
+        case NotVoid(Fun(paramTys, resultTy)):
+            pass
+        case t:
+            utils.abort(f'Invalid type of call target {e}: {t}')
+    match e:
+        case Name(x, BuiltinFun()):
+            return (atom.CallTargetBuiltin(x), [])
+        case Name(x, UserFun()):
+            return (atom.CallTargetDirect(x), [])
+        case Name(x, Var()):
+            return (atom.CallTargetIndirect(x, paramTys, resultTy), [])
+        case _:
+            (atomTarget, tmps) = transExpAtomic(e, ctx)
+            match atomTarget:
+                case atom.VarName(x):
+                    return (atom.CallTargetIndirect(x, paramTys, resultTy), tmps)
+                case _:
+                    utils.abort(f'Invalid call target after type checking: {e}')
 
 def transExp(e: exp, needAtomic: bool, ctx: Ctx) -> tuple[atom.exp, Temporaries]:
-    """
-    Translates expression e (of type array_ast.exp) to an expression of type
-    array_astAtom.exp, together with a list of temporary variables used by
-    the translated expression.
-
-    If the flag needAtomic is True, then the translated expression is an atomic expression,
-    that is something of the form array_astAtom.AtomExp(...).
-    """
-    t = e.ty
+    t = assertResultTy(e.ty)
     match e:
         case IntConst(v):
-            # check that t is not None
-            t = ensure_result_ty(t)
-            return (atom.AtomExp(atom.IntConst(v, Int()), t), [])
+            return (atom.AtomExp(atom.IntConst(v, assertTy(t)), t), [])
         case BoolConst(v):
-            # check that t is not None
-            t = ensure_result_ty(t)
-            return (atom.AtomExp(atom.BoolConst(v, Bool()), t), [])
-        case Name(x):
-            xt = assertExpNotVoid(e)
-            # check that t is not None
-            t = ensure_result_ty(t)
-            return (atom.AtomExp(atom.VarName(x, xt), t), [])
-        case Call(fun, args):
-            (atomFun, funTmps) = transExpAtomic(fun, ctx)
-            (atomArgs, argsTmps) = utils.unzip([transExp(a, True, ctx) for a in args])
-            # check that t is not None
-            t = ensure_result_ty(t)
-            match atomFun:
-                case atom.VarName(f, _):
-                    callTarget = atom.CallTargetDirect(f)
-                case atom.FunName(f, _):
-                    callTarget = atom.CallTargetDirect(f)
-                case _:
-                    utils.abort(f"Unexpected atomFun in Call: {atomFun}")
-            return atomic(needAtomic, atom.Call(callTarget, atomArgs, t), funTmps + utils.flatten(argsTmps), ctx)
-        case UnOp(op, arg):
-            (atomArg, tmps) = transExp(arg, False, ctx)
-            # check that t is not None
-            t = ensure_result_ty(t)
-            return atomic(needAtomic, atom.UnOp(op, atomArg, t), tmps, ctx)
+            return (atom.AtomExp(atom.BoolConst(v, assertTy(t)), t), [])
+        case Call(target, args):
+            (atomArgs, tmps) = utils.unzip([transExp(a, False, ctx) for a in args])
+            (atomTarget, tmps2) = callTarget(target, ctx)
+            return atomic(needAtomic, atom.Call(atomTarget, atomArgs, t),
+                          utils.flatten(tmps) + tmps2, ctx)
+        case UnOp(op, sub):
+            (atomSub, tmps) = transExp(sub, False, ctx)
+            return atomic(needAtomic, atom.UnOp(op, atomSub, t), tmps, ctx)
         case BinOp(left, op, right):
             (l, tmps1) = transExp(left, False, ctx)
             (r, tmps2) = transExp(right, False, ctx)
-            # check that t is not None
-            t = ensure_result_ty(t)
             return atomic(needAtomic, atom.BinOp(l, op, r, t), tmps1 + tmps2, ctx)
+        case Name(x, scope):
+            match scope:
+                case None:
+                    utils.abort(f'Scope not set on expression{e} after type checking')
+                case Var():
+                    name = atom.VarName(x, assertTy(t))
+                case UserFun():
+                    name = atom.FunName(x, assertTy(t))
+                case BuiltinFun():
+                    utils.abort(f'Free-standing reference to builtin function {e} found after type checking')
+            return (atom.AtomExp(name, t), [])
         case ArrayInitDyn(lenExp, elemInit):
             (atomLen, tmps1) = transExpAtomic(lenExp, ctx)
             (atomElem, tmps2) = transExpAtomic(elemInit, ctx)
-            # check that t is not None
-            t = ensure_result_ty(t)
             return atomic(needAtomic, atom.ArrayInitDyn(atomLen, atomElem, t), tmps1 + tmps2, ctx)
         case ArrayInitStatic(initExps):
             (atomArgs, tmps) = utils.unzip([transExpAtomic(i, ctx) for i in initExps])
-            # check that t is not None
-            t = ensure_result_ty(t)
             return atomic(needAtomic, atom.ArrayInitStatic(atomArgs, t), utils.flatten(tmps), ctx)
         case Subscript(arrExp, indexExp):
             (atomArr, tmps1) = transExpAtomic(arrExp, ctx)
             (atomIndex, tmps2) = transExpAtomic(indexExp, ctx)
-            # check that t is not None
-            t = ensure_result_ty(t)
             return atomic(needAtomic, atom.Subscript(atomArr, atomIndex, t), tmps1 + tmps2, ctx)
 
 def mkAssigns(tmps: Temporaries) -> list[atom.stmt]:
-    """
-    Turns a list of temporary variables into a list of statements.
-    """
     return [atom.Assign(x, e) for (x, e) in tmps]
 
 def transStmt(s: stmt, ctx: Ctx) -> list[atom.stmt]:
-    """
-    Translates statement s (of type array_ast.stmt) to a statement of type
-    array_astAtom.stmt.
-    """
     match s:
         case StmtExp(e):
             (a, tmps) = transExp(e, False, ctx)
@@ -160,35 +134,20 @@ def transStmt(s: stmt, ctx: Ctx) -> list[atom.stmt]:
             (i, tmps2) = transExpAtomic(indexExp, ctx)
             (r, tmps3) = transExp(rightExp, False, ctx)
             return mkAssigns(tmps1 + tmps2 + tmps3) + [atom.SubscriptAssign(l, i, r)]
-        case Return(e):
-            # e could be none or optional[exp]
-            if e is None:
-                return [atom.Return(None)]
-            else:
-                (a, tmps) = transExp(e, False, ctx)
-                return mkAssigns(tmps) + [atom.Return(a)]
+        case Return(exp):
+            match exp:
+                case None:
+                    return [atom.Return(None)]
+                case _:
+                    (a, tmps) = transExp(exp, False, ctx)
+                    return mkAssigns(tmps) + [atom.Return(a)]
 
 def transStmts(stmts: list[stmt], ctx: Ctx) -> list[atom.stmt]:
-    """
-    Main entry point, transforming a list of statements.
-    This function is called from compilers.array_compiler.compileModule.
-    """
     result: list[atom.stmt] = []
     for s in stmts:
         result.extend(transStmt(s, ctx))
     return result
 
 def transFun(f: FunDef, ctx: Ctx) -> atom.FunDef:
-    """
-    Translates a function definition from fun_ast to fun_astAtom.
-    """
     stmts = transStmts(f.body, ctx)
     return atom.FunDef(f.name, f.params, f.result, stmts)
-
-def transModule(m: Module, ctx: Ctx) -> atom.Module:
-    """
-    Translates a module from fun_ast to fun_astAtom.
-    """
-    funs = [transFun(f, ctx) for f in m.funs]
-    stmts = transStmts(m.stmts, ctx)
-    return atom.Module(funs, stmts)

@@ -2,7 +2,7 @@ from lang_fun.fun_astAtom import *
 import lang_fun.fun_ast as plainAst
 from common.wasm import *
 import lang_fun.fun_tychecker as fun_tychecker
-import compilers.lang_fun.fun_transform as fun_transform
+import compilers.lang_fun.fun_transform_ as fun_transform_
 from lang_array.array_compilerSupport import *
 from common.compilerSupport import *
 #import common.utils as utils
@@ -15,6 +15,13 @@ def tyOfExp(exp: exp) -> ty:
             raise Exception(f'Void type for expression {exp}')
         case NotVoid(t):
             return t
+        
+def extractTy(result: resultTy) -> ty:
+    match result:
+        case NotVoid(t):
+            return t
+        case Void():
+            raise Exception(f'Void type for expression {exp}')
 
 def tyInArr(exp: exp) -> ty:
     match exp.ty:
@@ -113,8 +120,6 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
             # CallTargetBuiltin | CallTargetDirect | CallTargetIndirect
             match fun:
                 case CallTargetBuiltin(var):
-                    instrs.append(WasmInstrCall(WasmId('$' + var.name)))
-                case CallTargetDirect(var):
                     match var.name:
                         # map print to print_i64 and input_int to input_i64
                         case 'print':
@@ -133,8 +138,12 @@ def compileExp(exp: exp, cfg: CompilerConfig) -> list[WasmInstr]:
                             instrs += arrayLenInstrs()
                         case _:
                             instrs.append(WasmInstrCall(WasmId('$' + var.name)))
+                case CallTargetDirect(var):
+                    instrs.append(WasmInstrCall(WasmId('$' + var.name)))
                 case CallTargetIndirect(name, params, result):
-                    raise Exception(f'Indirect call not implemented')
+                    pass
+
+
             return instrs
         # translate UnOp to WasmInstrConst and WasmInstrNumBinOp
         case UnOp(USub(), arg):
@@ -628,9 +637,9 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
     # type check the module
     vars = fun_tychecker.tycheckModule(m)
     # create ctx
-    ctx = fun_transform.Ctx()
+    ctx = fun_transform_.Ctx()
 
-    atomic_module = fun_transform.transModule(m, ctx)
+    atomic_module = fun_transform_.transModule(m, ctx)
 
     atomic_stmts = atomic_module.stmts
     atomic_funs = atomic_module.funs
