@@ -72,8 +72,8 @@ def checkInside(ty: optional[ty]) -> ty:
             return Bool()
         case Array(ty):
             return ty
-        case _:
-            raise Exception(f'Invalid type {ty} in array')
+        case Fun(params, result):
+            return Fun(params, result)
         
 # compile AtomExp to WasmInstr
 def compileAtomExp(a: atomExp, cfg: CompilerConfig, funcsListing: list[WasmId]) -> list[WasmInstr]:
@@ -455,12 +455,14 @@ def compileStmts(stmts: list[stmt], cfg: CompilerConfig, funcsListing: list[Wasm
                     # get ty of the expression
                     myty = tyOfExp(exp)
                     myty = 'i64' if myty == Int() else 'i32'
-                    instrs.append(
-                        WasmInstrBlock(
-                            WasmId("$fun_exit"), 
-                            myty, 
-                            compileExp(exp, cfg, funcsListing) + 
-                            [WasmInstrBranch(WasmId("$fun_exit"), False)] + [WasmInstrConst('i64', 0)]))
+                    # instrs.append(
+                    #     WasmInstrBlock(
+                    #         WasmId("$fun_exit"), 
+                    #         myty, 
+                    #         compileExp(exp, cfg, funcsListing) + 
+                    #         [WasmInstrBranch(WasmId("$fun_exit"), False)] + [WasmInstrConst('i64', 0)]))
+                    instrs += compileExp(exp, cfg, funcsListing)
+                    instrs.append(WasmInstrBranch(WasmId("$fun_exit"), False))
 
     return instrs
 
@@ -629,14 +631,18 @@ def createLocals(stmts: list[stmt]) -> list[tuple[WasmId, WasmValtype]]:
                         locals.append((WasmId('$' + var.name), 'i64'))
                     elif isinstance(right, Ident):
                         locals.append((WasmId('$' + var.name), 'i64'))
+                    elif isinstance(right, Subscript):
+                        locals.append((WasmId('$' + var.name), 'i32'))
+                    else:
+                        raise Exception(f'Invalid type {stmt.right}')
             case IfStmt(_, thenBody, elseBody):
                 locals += createLocals(thenBody)
                 locals += createLocals(elseBody)
             case WhileStmt(_, body):
                 for stmt in body:
                     if isinstance(stmt, Assign):
-                        if stmt.var.name.startswith('tmp'):
-                            locals.append((WasmId('$' + stmt.var.name), 'i64'))
+                        if isinstance(stmt.right, Subscript):
+                            locals.append((WasmId('$' + stmt.var.name), 'i32'))
                     else:
                         pass
 
@@ -662,14 +668,21 @@ def compileFun(fun: list[fun], cfg: CompilerConfig, funcsListing: list[WasmId]) 
     # create a list of functions
     funcs : list[WasmFunc] = []
     for f in fun:
+        # result is either Notvoid(t) or Void()
+        result = tyOfResultTy(f.result)
+        # map result to Optional[WasmValtype]
+        result = 'i64' if result == Int() else 'i32'
         # create a list of locals
         locals : list[tuple[WasmId, WasmValtype]] = []
         # add to locals the temporary variables
-        #locals.append((WasmId('$@tmp_i32'), 'i32'))
+        locals.append((WasmId('$@tmp_i32'), 'i32'))
+        locals.append((WasmId('$@tmp_i64'), 'i64'))
         # for assign in atomic_stmts get IDENT.NAME and create locals
         locals += createLocals(f.body)
         # create a list of instructions
-        instr = compileStmts(f.body, cfg, funcsListing)
+        temp = compileStmts(f.body, cfg, funcsListing)
+        temp.append(WasmInstrConst(result, 0))
+        instr : list[WasmInstr] = [WasmInstrBlock(WasmId('$fun_exit'), result, temp)]
         # get params in WasmFunc --> params = list[tuple[WasmId, WasmValtype]]
         params: list[funParam] = []
         for p in f.params:
@@ -681,10 +694,6 @@ def compileFun(fun: list[fun], cfg: CompilerConfig, funcsListing: list[WasmId]) 
         for p in params:
             mappedParams.append((WasmId('$' + p.var.name), 'i64' if p.ty == Int() else 'i32'))
                 
-        # result is either Notvoid(t) or Void()
-        result = tyOfResultTy(f.result)
-        # map result to Optional[WasmValtype]
-        result = 'i64' if result == Int() else 'i32'
         # create a function
         funcs.append(WasmFunc(id=WasmId('$%' + f.name.name),
                               params=mappedParams,
@@ -756,5 +765,5 @@ def compileModule(m: plainAst.mod, cfg: CompilerConfig) -> WasmModule:
                     exports=[WasmExport('main', WasmExportFunc(WasmId('$main')))],
                     globals=Globals.decls(),
                     data=Errors.data(),
-                    funcTable=WasmFuncTable([WasmId('$print'), WasmId('$print_err'), WasmId('$print_bool'), WasmId('$print_i64'), WasmId('$print_i32'), WasmId('$input_i64'), WasmId('$input_i32')] + wasmIds),
-                    funcs=[main] + funcs)
+                    funcTable=WasmFuncTable(wasmIds),
+                    funcs=funcs + [main])

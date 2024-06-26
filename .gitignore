@@ -11,3 +11,4 @@ wasm-support/native-lib/build/
 out.wat
 test.wat
 *.zip
+fun_compiler_help.py
