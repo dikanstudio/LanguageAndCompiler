@@ -1,3 +1,5 @@
+TEST = 5
+
 def call_all(l: list[Callable[[int], int]]) -> int:
     sum = 0
     n = len(l)

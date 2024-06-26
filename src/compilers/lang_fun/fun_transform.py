@@ -151,3 +151,11 @@ def transStmts(stmts: list[stmt], ctx: Ctx) -> list[atom.stmt]:
 def transFun(f: FunDef, ctx: Ctx) -> atom.FunDef:
     stmts = transStmts(f.body, ctx)
     return atom.FunDef(f.name, f.params, f.result, stmts)
+
+def transModule(m: Module, ctx: Ctx) -> atom.Module:
+    """
+    Translates a module from fun_ast to fun_astAtom.
+    """
+    funs = [transFun(f, ctx) for f in m.funs]
+    stmts = transStmts(m.stmts, ctx)
+    return atom.Module(funs, stmts)
