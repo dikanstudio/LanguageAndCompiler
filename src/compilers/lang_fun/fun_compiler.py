@@ -107,7 +107,8 @@ def compileAtomExp(a: atomExp, cfg: CompilerConfig, funcsListing: list[WasmId]) 
                 for i, f in enumerate(funcsListing):
                     if f.id == "$%" + fun.name:
                         indexOfFunction = i
-                        return [WasmInstrConst('i32', indexOfFunction)]
+                        break
+                return [WasmInstrConst('i32', indexOfFunction)]
 
 def compileExp(exp: exp, cfg: CompilerConfig, funcsListing: list[WasmId]) -> list[WasmInstr]:
     # debug info - analyze the expression
@@ -282,37 +283,39 @@ def compileExp(exp: exp, cfg: CompilerConfig, funcsListing: list[WasmId]) -> lis
             return instrs
         # translate AtomExp which is either IntConst, BoolConst or Name
         case AtomExp(a):
-            match a:
-                case IntConst(v):
-                    return [WasmInstrConst('i64', v)]
-                case BoolConst(v):
-                    return [WasmInstrConst('i32', 1 if v else 0)]
-                case VarName(var):
-                # check ty of a if Fun use call
-                # if isinstance(a.ty, Fun):
-                #     identifier = a.ty.params
-                #     temp : list[WasmValtype] = []
-                #     for i in identifier:
-                #         if i == Int():
-                #             temp.append('i64')
-                #         else:
-                #             temp.append('i32')
-                #     if a.ty.result == NotVoid(Int()):
-                #         return [WasmInstrCallIndirect(temp, 'i64')]
-                #     else:
-                #         return [WasmInstrCallIndirect(temp, 'i32')]
-                # else:
-                #     return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
-                    return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
-                case FunName(fun, _):
-                    if "tmp" in fun.name:
-                        return [WasmInstrVarLocal('get', WasmId("$" + fun.name))]
-                    else:
-                        indexOfFunction = 0
-                        for i, f in enumerate(funcsListing):
-                            if f.id == "$%" + fun.name:
-                                indexOfFunction = i
-                                return [WasmInstrConst('i32', indexOfFunction)]
+            # match a:
+            #     case IntConst(v):
+            #         return [WasmInstrConst('i64', v)]
+            #     case BoolConst(v):
+            #         return [WasmInstrConst('i32', 1 if v else 0)]
+            #     case VarName(var):
+            #     # check ty of a if Fun use call
+            #     # if isinstance(a.ty, Fun):
+            #     #     identifier = a.ty.params
+            #     #     temp : list[WasmValtype] = []
+            #     #     for i in identifier:
+            #     #         if i == Int():
+            #     #             temp.append('i64')
+            #     #         else:
+            #     #             temp.append('i32')
+            #     #     if a.ty.result == NotVoid(Int()):
+            #     #         return [WasmInstrCallIndirect(temp, 'i64')]
+            #     #     else:
+            #     #         return [WasmInstrCallIndirect(temp, 'i32')]
+            #     # else:
+            #     #     return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
+            #         return [WasmInstrVarLocal('get', WasmId("$" + var.name))]
+            #     case FunName(fun, _):
+            #         if "tmp" in fun.name:
+            #             return [WasmInstrVarLocal('get', WasmId("$" + fun.name))]
+            #         else:
+            #             indexOfFunction = 0
+            #             for i, f in enumerate(funcsListing):
+            #                 if f.id == "$%" + fun.name:
+            #                     indexOfFunction = i
+            #                     break
+            #             return [WasmInstrConst('i32', indexOfFunction)]
+            return compileAtomExp(a, cfg, funcsListing)
         # translate ArrayInitDyn
         case ArrayInitDyn(lenExp, elemInit):
             # this leaves the array address on top of the stack
@@ -387,7 +390,13 @@ def compileExp(exp: exp, cfg: CompilerConfig, funcsListing: list[WasmId]) -> lis
             instrs = arrayOffsetInstrs(arrExp, indexExp, cfg, funcsListing)
             # get the index
             #instrs += compileExp(indexExp, cfg)
-            instrs.append(WasmInstrMem('i64' if tyOfExp(exp) == Int() else 'i32', 'load'))
+            #instrs.append(WasmInstrMem('i64' if tyOfExp(exp) == Int() else 'i32', 'load'))
+            if isinstance(arrExp.ty, Array):
+                match arrExp.ty.elemTy:
+                    case Int():
+                        instrs.append(WasmInstrMem('i64', 'load'))
+                    case _:
+                        instrs.append(WasmInstrMem('i32', 'load'))
             return instrs
         # raise exception if no match
         case _:
@@ -446,7 +455,12 @@ def compileStmts(stmts: list[stmt], cfg: CompilerConfig, funcsListing: list[Wasm
                     # get ty of the expression
                     myty = tyOfExp(exp)
                     myty = 'i64' if myty == Int() else 'i32'
-                    instrs.append(WasmInstrBlock(WasmId("$fun_exit"), myty, compileExp(exp, cfg, funcsListing) + [WasmInstrBranch(WasmId("$fun_exit"), False), WasmInstrConst('i64', 0)]))
+                    instrs.append(
+                        WasmInstrBlock(
+                            WasmId("$fun_exit"), 
+                            myty, 
+                            compileExp(exp, cfg, funcsListing) + 
+                            [WasmInstrBranch(WasmId("$fun_exit"), False)] + [WasmInstrConst('i64', 0)]))
 
     return instrs
 
